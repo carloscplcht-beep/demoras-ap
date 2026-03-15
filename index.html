@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
+  <title>Programa de análisis de las demoras en Atención Primaria</title>
+  <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="hero-panel">
+      <div class="hero-panel__brands">
+        <article class="brand-tile brand-tile--sescam" aria-label="Identidad SESCAM">
+          <div class="brand-symbol brand-symbol--sescam" aria-hidden="true">
+            <span class="brand-symbol__cross"></span>
+            <span class="brand-symbol__drop"></span>
+          </div>
+          <div class="brand-copy">
+            <span class="brand-copy__title">sescam</span>
+            <span class="brand-copy__subtitle">Servicio de Salud de Castilla-La Mancha</span>
+          </div>
+        </article>
+
+        <article class="brand-tile brand-tile--gai" aria-label="Identidad Gerencia Atención Integrada Ciudad Real">
+          <div class="brand-symbol brand-symbol--gai" aria-hidden="true">
+            <span class="brand-symbol__frame"></span>
+            <span class="brand-symbol__arch"></span>
+          </div>
+          <div class="brand-copy">
+            <span class="brand-copy__subtitle brand-copy__subtitle--eyebrow">Ciudad Real</span>
+            <span class="brand-copy__title brand-copy__title--compact">Gerencia Atención Integrada</span>
+          </div>
+        </article>
+      </div>
+
+      <div class="hero-panel__content">
+        <div class="hero-panel__eyebrow">Dashboard local sin servidor ni instalaciones</div>
+        <h1>Programa de análisis de las demoras en Atención Primaria</h1>
+        <p class="hero-panel__subtitle">Subdirección de Enfermería de Atención Primaria</p>
+        <p class="hero-panel__subtitle hero-panel__subtitle--muted">Gerencia de Atención Integrada de Ciudad Real</p>
+      </div>
+
+      <aside class="hero-status-card">
+        <div class="hero-status-card__header">
+          <span class="status-indicator" id="statusIndicator"></span>
+          <span id="statusLabel">Pendiente de carga</span>
+        </div>
+        <p id="statusMessage">Cargue un archivo Excel para comenzar el análisis.</p>
+        <div class="hero-status-card__meta" id="statusMeta">Archivo recomendado: Agendas AP Dias Demora CIAS.xlsx</div>
+      </aside>
+    </header>
+
+    <nav class="tab-bar" aria-label="Navegación principal">
+      <button class="tab-button is-active" type="button" data-tab-target="upload">Cargar Excel</button>
+      <button class="tab-button" type="button" data-tab-target="table">Tabla</button>
+      <button class="tab-button" type="button" data-tab-target="summary">Resumen ejecutivo</button>
+      <button class="tab-button" type="button" data-tab-target="charts">Gráficos</button>
+    </nav>
+
+    <section class="glass-panel filters-panel is-disabled" id="filtersPanel" aria-labelledby="filtersTitle">
+      <div class="section-head">
+        <div>
+          <p class="section-kicker">Filtros combinables</p>
+          <h2 id="filtersTitle">Vista analítica compartida</h2>
+          <p class="section-description">Los filtros se aplican simultáneamente a tabla, KPIs y gráficos.</p>
+        </div>
+        <div class="section-head__actions">
+          <button id="resetFiltersButton" class="ghost-button" type="button" disabled>Restablecer filtros</button>
+          <button id="exportCsvButton" class="secondary-button" type="button" disabled>Exportar tabla filtrada a CSV</button>
+        </div>
+      </div>
+
+      <div class="filters-grid">
+        <label class="field">
+          <span class="field__label">Área</span>
+          <select id="filterArea" disabled>
+            <option value="">Todos</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span class="field__label">Zona</span>
+          <select id="filterZona" disabled>
+            <option value="">Todos</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span class="field__label">Centro</span>
+          <select id="filterCentro" disabled>
+            <option value="">Todos</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span class="field__label">PROFESIONAL</span>
+          <select id="filterProfesional" disabled>
+            <option value="">Todos</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span class="field__label">Categoría</span>
+          <select id="filterCategoria" disabled>
+            <option value="">Todos</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span class="field__label">Tipo visita</span>
+          <select id="filterTipoVisita" disabled>
+            <option value="">Todos</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="filters-panel__summary" id="filtersSummary">
+        Sin datos cargados.
+      </div>
+    </section>
+
+    <main class="content-stack">
+      <section class="tab-panel is-active" id="tab-upload" data-tab-panel="upload">
+        <div class="panel-grid panel-grid--upload">
+          <article class="glass-panel uploader-panel">
+            <div class="section-kicker">Carga manual del libro</div>
+            <h2>Importe el Excel local para iniciar el análisis</h2>
+            <p class="section-description">
+              La aplicación leerá la primera hoja disponible del archivo <strong>.xlsx</strong>,
+              validará las columnas oficiales y activará el análisis ejecutivo de forma inmediata.
+            </p>
+
+            <div class="uploader-panel__actions">
+              <button id="selectFileButton" class="primary-button primary-button--large" type="button">Seleccionar archivo Excel</button>
+              <input id="fileInput" type="file" accept=".xlsx" hidden>
+              <span class="inline-hint">Archivo habitual: Agendas AP Dias Demora CIAS.xlsx</span>
+            </div>
+
+            <div class="feedback-banner feedback-banner--info" id="uploadFeedback" role="status" aria-live="polite">
+              Cargue un archivo Excel para comenzar el análisis.
+            </div>
+          </article>
+
+          <article class="glass-panel profile-panel">
+            <div class="section-kicker">Ficha del archivo</div>
+            <h2>Resumen de carga</h2>
+            <div class="profile-grid">
+              <div class="profile-stat">
+                <span class="profile-stat__label">Archivo</span>
+                <strong class="profile-stat__value" id="loadedFileName">Sin cargar</strong>
+              </div>
+              <div class="profile-stat">
+                <span class="profile-stat__label">Hoja leída</span>
+                <strong class="profile-stat__value" id="loadedSheetName">-</strong>
+              </div>
+              <div class="profile-stat">
+                <span class="profile-stat__label">Filas leídas</span>
+                <strong class="profile-stat__value" id="loadedRowsCount">0</strong>
+              </div>
+              <div class="profile-stat">
+                <span class="profile-stat__label">Agendas válidas</span>
+                <strong class="profile-stat__value" id="loadedValidCount">0</strong>
+              </div>
+              <div class="profile-stat">
+                <span class="profile-stat__label">Última carga</span>
+                <strong class="profile-stat__value" id="loadedAt">-</strong>
+              </div>
+              <div class="profile-stat">
+                <span class="profile-stat__label">Estado</span>
+                <strong class="profile-stat__value" id="loadedState">Pendiente</strong>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <div class="panel-grid panel-grid--upload-secondary">
+          <article class="glass-panel info-card">
+            <div class="section-kicker">Validación estructural</div>
+            <h2>Columnas esperadas</h2>
+            <p class="section-description">La app valida solo estas columnas. Si existen <strong>CIAS ID</strong> o <strong>UID</strong>, se ignoran automáticamente.</p>
+            <div class="columns-list" id="expectedColumnsList"></div>
+          </article>
+
+          <article class="glass-panel info-card">
+            <div class="section-kicker">Criterio ejecutivo</div>
+            <h2>Indicadores principales</h2>
+            <ul class="method-list">
+              <li>% agendas con demora &lt;48h: Accesibilidad &lt; 2</li>
+              <li>% agendas con demora &lt;5 días: Accesibilidad &lt; 5</li>
+              <li>% agendas con 7 o más días: Accesibilidad &gt;= 7</li>
+              <li>Los cálculos se realizan solo con agendas válidas y filtros activos.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section class="tab-panel" id="tab-table" data-tab-panel="table">
+        <article class="glass-panel table-panel">
+          <div class="section-head">
+            <div>
+              <p class="section-kicker">Exploración detallada</p>
+              <h2>Tabla operativa</h2>
+              <p class="section-description">Ordenación por columnas, búsqueda rápida y paginación cómoda.</p>
+            </div>
+            <div class="section-head__actions section-head__actions--table">
+              <label class="search-field">
+                <span class="search-field__label">Buscar en tabla</span>
+                <input id="tableSearchInput" type="search" placeholder="Buscar texto en cualquier columna" disabled>
+              </label>
+
+              <label class="field field--compact">
+                <span class="field__label">Filas por página</span>
+                <select id="pageSizeSelect" disabled>
+                  <option value="10">10</option>
+                  <option value="20" selected>20</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                </select>
+              </label>
+            </div>
+          </div>
+
+          <div class="table-toolbar">
+            <span id="tableVisibleCount">0 filas visibles</span>
+            <span id="tableValidVisibleCount">0 agendas válidas para análisis</span>
+          </div>
+
+          <div class="table-empty-state" id="tableEmptyState">
+            Cargue un Excel para visualizar la tabla.
+          </div>
+
+          <div class="table-wrapper is-hidden" id="tableWrapper">
+            <table class="data-table" id="dataTable">
+              <thead id="dataTableHead"></thead>
+              <tbody id="dataTableBody"></tbody>
+            </table>
+          </div>
+
+          <div class="pagination-bar">
+            <button id="prevPageButton" class="ghost-button" type="button" disabled>Anterior</button>
+            <span id="paginationInfo">Página 0 de 0</span>
+            <button id="nextPageButton" class="ghost-button" type="button" disabled>Siguiente</button>
+          </div>
+        </article>
+      </section>
+
+      <section class="tab-panel" id="tab-summary" data-tab-panel="summary">
+        <article class="glass-panel summary-panel">
+          <div class="section-head">
+            <div>
+              <p class="section-kicker">Lectura directiva</p>
+              <h2>Resumen ejecutivo</h2>
+              <p class="section-description">KPIs calculados sobre agendas con Accesibilidad numérica y filtros activos.</p>
+            </div>
+            <div class="scope-pill" id="summaryScope">Sin datos analíticos</div>
+          </div>
+
+          <div class="kpi-grid">
+            <article class="kpi-card kpi-card--positive">
+              <span class="kpi-card__label">% agendas con demora &lt;48h</span>
+              <strong class="kpi-card__value" id="kpiPct48h">--</strong>
+              <span class="kpi-card__detail">Accesibilidad &lt; 2</span>
+            </article>
+
+            <article class="kpi-card kpi-card--positive-soft">
+              <span class="kpi-card__label">% agendas con demora &lt;5 días</span>
+              <strong class="kpi-card__value" id="kpiPct5d">--</strong>
+              <span class="kpi-card__detail">Accesibilidad &lt; 5</span>
+            </article>
+
+            <article class="kpi-card kpi-card--alert">
+              <span class="kpi-card__label">% agendas con 7 o más días</span>
+              <strong class="kpi-card__value" id="kpiPct7d">--</strong>
+              <span class="kpi-card__detail">Accesibilidad &gt;= 7</span>
+            </article>
+
+            <article class="kpi-card">
+              <span class="kpi-card__label">Total agendas válidas</span>
+              <strong class="kpi-card__value" id="kpiTotalValid">--</strong>
+              <span class="kpi-card__detail">Base del análisis</span>
+            </article>
+
+            <article class="kpi-card">
+              <span class="kpi-card__label">Demora media</span>
+              <strong class="kpi-card__value" id="kpiMean">--</strong>
+              <span class="kpi-card__detail">Días de Accesibilidad</span>
+            </article>
+
+            <article class="kpi-card">
+              <span class="kpi-card__label">Demora mediana</span>
+              <strong class="kpi-card__value" id="kpiMedian">--</strong>
+              <span class="kpi-card__detail">Valor central</span>
+            </article>
+
+            <article class="kpi-card">
+              <span class="kpi-card__label">Demora máxima</span>
+              <strong class="kpi-card__value" id="kpiMax">--</strong>
+              <span class="kpi-card__detail">Mayor demora detectada</span>
+            </article>
+          </div>
+        </article>
+
+        <div class="charts-grid charts-grid--summary">
+          <article class="glass-panel chart-card">
+            <div class="chart-card__head">
+              <div>
+                <p class="section-kicker">Tramos de demora</p>
+                <h3>Distribución ejecutiva de agendas</h3>
+              </div>
+              <button class="ghost-button chart-export-button" type="button" data-chart-export="summaryBandsChart">Descargar PNG</button>
+            </div>
+            <div class="chart-host chart-host--medium" id="summaryBandsChart"></div>
+          </article>
+
+          <article class="glass-panel chart-card">
+            <div class="chart-card__head">
+              <div>
+                <p class="section-kicker">Peso relativo</p>
+                <h3>Proporción por tramos clave</h3>
+              </div>
+              <button class="ghost-button chart-export-button" type="button" data-chart-export="summaryDonutChart">Descargar PNG</button>
+            </div>
+            <div class="chart-host chart-host--medium" id="summaryDonutChart"></div>
+          </article>
+        </div>
+
+        <article class="glass-panel methodology-panel">
+          <div class="section-kicker">Leyenda metodológica</div>
+          <h2>Cómo se calculan los indicadores</h2>
+          <ul class="method-list">
+            <li>Solo se incluyen agendas con valor numérico en la columna <strong>Accesibilidad</strong>.</li>
+            <li>El porcentaje &lt;48h considera valores 0 o 1 en Accesibilidad.</li>
+            <li>El porcentaje &lt;5 días considera valores 0, 1, 2, 3 y 4.</li>
+            <li>El porcentaje de 7 o más días considera valores iguales o superiores a 7.</li>
+            <li>Media, mediana y máximo se recalculan con el subconjunto filtrado en cada momento.</li>
+          </ul>
+        </article>
+      </section>
+
+      <section class="tab-panel" id="tab-charts" data-tab-panel="charts">
+        <div class="charts-grid charts-grid--detail">
+          <article class="glass-panel chart-card">
+            <div class="chart-card__head">
+              <div>
+                <p class="section-kicker">Ranking</p>
+                <h3>Centros con mayor demora media</h3>
+              </div>
+              <button class="ghost-button chart-export-button" type="button" data-chart-export="centersChart">Descargar PNG</button>
+            </div>
+            <div class="chart-host chart-host--tall" id="centersChart"></div>
+          </article>
+
+          <article class="glass-panel chart-card">
+            <div class="chart-card__head">
+              <div>
+                <p class="section-kicker">Ranking</p>
+                <h3>Zonas con mayor demora media</h3>
+              </div>
+              <button class="ghost-button chart-export-button" type="button" data-chart-export="zonesChart">Descargar PNG</button>
+            </div>
+            <div class="chart-host chart-host--tall" id="zonesChart"></div>
+          </article>
+
+          <article class="glass-panel chart-card">
+            <div class="chart-card__head">
+              <div>
+                <p class="section-kicker">Categorías</p>
+                <h3>Comparación por categoría</h3>
+              </div>
+              <button class="ghost-button chart-export-button" type="button" data-chart-export="categoryChart">Descargar PNG</button>
+            </div>
+            <div class="chart-host chart-host--medium" id="categoryChart"></div>
+          </article>
+
+          <article class="glass-panel chart-card">
+            <div class="chart-card__head">
+              <div>
+                <p class="section-kicker">Tipo de visita</p>
+                <h3>Comparación por tipo de visita</h3>
+              </div>
+              <button class="ghost-button chart-export-button" type="button" data-chart-export="visitTypeChart">Descargar PNG</button>
+            </div>
+            <div class="chart-host chart-host--medium" id="visitTypeChart"></div>
+          </article>
+
+          <article class="glass-panel chart-card">
+            <div class="chart-card__head">
+              <div>
+                <p class="section-kicker">Distribución</p>
+                <h3>Histograma de días de demora</h3>
+              </div>
+              <button class="ghost-button chart-export-button" type="button" data-chart-export="histogramChart">Descargar PNG</button>
+            </div>
+            <div class="chart-host chart-host--medium" id="histogramChart"></div>
+          </article>
+
+          <article class="glass-panel chart-card">
+            <div class="chart-card__head">
+              <div>
+                <p class="section-kicker">Composición</p>
+                <h3>Tramos de demora por centro</h3>
+              </div>
+              <button class="ghost-button chart-export-button" type="button" data-chart-export="centerBandsChart">Descargar PNG</button>
+            </div>
+            <div class="chart-host chart-host--tall" id="centerBandsChart"></div>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="signature-footer">Diseño: Carlos Peña</footer>
+  </div>
+
+  <script src="assets/js/xlsx-lite.js"></script>
+  <script src="assets/js/charts.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>
