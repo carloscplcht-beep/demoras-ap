@@ -1,1 +1,22 @@
-
+{
+  "name": "Programa de análisis de las demoras en Atención Primaria",
+  "short_name": "Demoras AP",
+  "description": "Dashboard para análisis de demoras en Atención Primaria",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#f5f7fb",
+  "theme_color": "#0f6b5b",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
