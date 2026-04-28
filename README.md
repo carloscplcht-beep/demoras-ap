@@ -5,7 +5,7 @@
 1. Abra `index.html` con doble clic.
 2. Pulse `Seleccionar archivo Excel`.
 3. Cargue el archivo `.xlsx` que quiera analizar.
-4. Navegue por `Tabla`, `Resumen ejecutivo` y `Graficos`.
+4. Navegue por `Tabla`, `Resumen ejecutivo`, `Graficos` e `Informe`.
 
 ## Requisitos del archivo
 
@@ -37,3 +37,4 @@
 - Los indicadores ejecutivos solo usan filas con `Accesibilidad` numerica.
 - La tabla filtrada puede exportarse a CSV.
 - Cada grafico dispone de descarga directa a PNG.
+- La vista `Informe` genera un resumen ejecutivo imprimible adaptado a los filtros activos.
