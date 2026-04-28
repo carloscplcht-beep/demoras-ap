@@ -57,6 +57,7 @@
       <button class="tab-button" type="button" data-tab-target="table">Tabla</button>
       <button class="tab-button" type="button" data-tab-target="summary">Resumen ejecutivo</button>
       <button class="tab-button" type="button" data-tab-target="charts">Gráficos</button>
+      <button class="tab-button" type="button" data-tab-target="report">Informe</button>
     </nav>
 
     <section class="glass-panel filters-panel is-disabled" id="filtersPanel" aria-labelledby="filtersTitle">
@@ -408,6 +409,166 @@
           </article>
         </div>
       </section>
+
+      <section class="tab-panel" id="tab-report" data-tab-panel="report">
+        <article class="glass-panel report-panel" id="reportPanel">
+          <div class="report-toolbar report-toolbar--screen">
+            <div>
+              <p class="section-kicker">Documento ejecutivo</p>
+              <h2>Informe final listo para lectura e impresión</h2>
+              <p class="section-description">El contenido del informe se actualiza automáticamente según los filtros activos.</p>
+            </div>
+            <button id="printReportButton" class="primary-button" type="button">Imprimir informe</button>
+          </div>
+
+          <div class="report-document" id="reportDocument">
+            <header class="report-header">
+              <div class="report-header__copy">
+                <p class="section-kicker">Informe institucional</p>
+                <h2>Informe sobre accesibilidad</h2>
+                <p class="report-header__subtitle">Síntesis ejecutiva de la accesibilidad observada en Atención Primaria a partir del subconjunto filtrado.</p>
+              </div>
+              <div class="report-header__scope">
+                <span class="scope-pill" id="reportScope">Sin datos analíticos</span>
+              </div>
+            </header>
+
+            <section class="report-meta-grid" aria-label="Datos de contexto del informe">
+              <article class="report-meta-card">
+                <span class="report-meta-card__label">Área</span>
+                <strong class="report-meta-card__value" id="reportArea">Todas las áreas</strong>
+              </article>
+
+              <article class="report-meta-card">
+                <span class="report-meta-card__label">Zonas Básicas de Salud</span>
+                <strong class="report-meta-card__value" id="reportZones">Todas las zonas</strong>
+                <span class="report-meta-card__detail" id="reportZonesDetail"></span>
+              </article>
+
+              <article class="report-meta-card">
+                <span class="report-meta-card__label">Fecha de corte</span>
+                <strong class="report-meta-card__value" id="reportCutoffDate">Fecha de corte no disponible</strong>
+              </article>
+            </section>
+
+            <section class="report-summary" aria-labelledby="reportSummaryTitle">
+              <div class="report-section-head">
+                <div>
+                  <p class="section-kicker">Lectura automática</p>
+                  <h3 id="reportSummaryTitle">Resumen breve</h3>
+                </div>
+              </div>
+              <div class="report-summary__body" id="reportSummaryBody">
+                <p>Cargue un archivo Excel para generar el informe.</p>
+              </div>
+            </section>
+
+            <section class="report-empty-state is-hidden" id="reportEmptyState">
+              No hay información disponible para generar el informe con los filtros actuales.
+            </section>
+
+            <div class="report-content" id="reportContent">
+              <section class="report-kpis" aria-labelledby="reportIndicatorsTitle">
+                <div class="report-section-head">
+                  <div>
+                    <p class="section-kicker">Indicadores clave</p>
+                    <h3 id="reportIndicatorsTitle">Síntesis cuantitativa</h3>
+                  </div>
+                </div>
+
+                <div class="kpi-grid report-kpi-grid">
+                  <article class="kpi-card kpi-card--positive">
+                    <span class="kpi-card__label">% agendas con demora &lt;48h</span>
+                    <strong class="kpi-card__value" id="reportKpiPct48h">--</strong>
+                    <span class="kpi-card__detail">Accesibilidad &lt; 2</span>
+                  </article>
+
+                  <article class="kpi-card kpi-card--positive-soft">
+                    <span class="kpi-card__label">% agendas con demora &lt;5 días</span>
+                    <strong class="kpi-card__value" id="reportKpiPct5d">--</strong>
+                    <span class="kpi-card__detail">Accesibilidad &lt; 5</span>
+                  </article>
+
+                  <article class="kpi-card kpi-card--alert">
+                    <span class="kpi-card__label">% agendas con 7 o más días</span>
+                    <strong class="kpi-card__value" id="reportKpiPct7d">--</strong>
+                    <span class="kpi-card__detail">Accesibilidad &gt;= 7</span>
+                  </article>
+
+                  <article class="kpi-card">
+                    <span class="kpi-card__label">Total agendas válidas</span>
+                    <strong class="kpi-card__value" id="reportKpiTotalValid">--</strong>
+                    <span class="kpi-card__detail">Base del informe</span>
+                  </article>
+
+                  <article class="kpi-card">
+                    <span class="kpi-card__label">Demora media</span>
+                    <strong class="kpi-card__value" id="reportKpiMean">--</strong>
+                    <span class="kpi-card__detail">Días de Accesibilidad</span>
+                  </article>
+
+                  <article class="kpi-card">
+                    <span class="kpi-card__label">Demora mediana</span>
+                    <strong class="kpi-card__value" id="reportKpiMedian">--</strong>
+                    <span class="kpi-card__detail">Valor central</span>
+                  </article>
+
+                  <article class="kpi-card">
+                    <span class="kpi-card__label">Demora máxima</span>
+                    <strong class="kpi-card__value" id="reportKpiMax">--</strong>
+                    <span class="kpi-card__detail">Mayor demora detectada</span>
+                  </article>
+                </div>
+              </section>
+
+              <section class="report-charts" aria-labelledby="reportChartsTitle">
+                <div class="report-section-head">
+                  <div>
+                    <p class="section-kicker">Visualización ejecutiva</p>
+                    <h3 id="reportChartsTitle">Gráficos para informe</h3>
+                  </div>
+                </div>
+
+                <div class="report-charts-grid">
+                  <article class="chart-card chart-card--report">
+                    <div class="chart-card__head">
+                      <div>
+                        <p class="section-kicker">Distribución</p>
+                        <h3>Agendas por tramos de demora</h3>
+                      </div>
+                    </div>
+                    <div class="chart-host chart-host--medium" id="reportBandsChart"></div>
+                  </article>
+
+                  <article class="chart-card chart-card--report">
+                    <div class="chart-card__head">
+                      <div>
+                        <p class="section-kicker">Ranking</p>
+                        <h3>Centros por demora media</h3>
+                      </div>
+                    </div>
+                    <div class="chart-host chart-host--medium" id="reportCentersChart"></div>
+                  </article>
+                </div>
+              </section>
+
+              <section class="report-methodology" aria-labelledby="reportMethodologyTitle">
+                <div class="report-section-head">
+                  <div>
+                    <p class="section-kicker">Nota metodológica</p>
+                    <h3 id="reportMethodologyTitle">Criterios de cálculo</h3>
+                  </div>
+                </div>
+                <ul class="method-list report-methodology__list">
+                  <li>Los indicadores se calculan únicamente sobre agendas con valor numérico en <strong>Accesibilidad</strong>.</li>
+                  <li>El porcentaje con demora &lt;48h corresponde a valores 0 o 1; el porcentaje &lt;5 días a valores 0 a 4.</li>
+                  <li>El porcentaje de 7 o más días considera valores iguales o superiores a 7 en el subconjunto filtrado.</li>
+                </ul>
+              </section>
+            </div>
+          </div>
+        </article>
+      </section>
     </main>
 
     <footer class="signature-footer">Diseño: Carlos Peña</footer>
@@ -416,5 +577,6 @@
   <script src="assets/js/xlsx-lite.js"></script>
   <script src="assets/js/charts.js"></script>
   <script src="assets/js/app.js"></script>
+  <script src="assets/js/report.js"></script>
 </body>
 </html>
