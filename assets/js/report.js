@@ -140,6 +140,7 @@
     const latestCutoff = getLatestDateSortValue(filteredRows, "Fecha Corte");
     const zoneMeta = getReportZoneMeta(filteredRows);
 
+    updatePrintButton(metrics);
     refs.reportArea.textContent = refs.area && refs.area.value ? refs.area.value : "Todas las áreas";
     refs.reportZones.textContent = zoneMeta.value;
     refs.reportZonesDetail.textContent = zoneMeta.detail;
@@ -611,11 +612,23 @@
   }
 
   function handlePrintReport() {
+    if (refs.printReportButton.disabled) {
+      return;
+    }
+
     const reportTabButton = document.querySelector('[data-tab-target="report"]');
     if (reportTabButton) {
       reportTabButton.click();
     }
     window.print();
+  }
+
+  function updatePrintButton(metrics) {
+    const canPrint = Boolean(metrics);
+    refs.printReportButton.disabled = !canPrint;
+    refs.printReportButton.title = canPrint
+      ? ""
+      : "Cargue un Excel con agendas válidas para imprimir el informe.";
   }
 
   function setKpiValue(element, value) {
