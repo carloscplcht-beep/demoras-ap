@@ -43,6 +43,9 @@
     renderTimer: 0
   };
 
+  ensureReportDetailUi();
+  ensureReportDetailStyles();
+
   const refs = {
     fileInput: document.getElementById("fileInput"),
     resetFiltersButton: document.getElementById("resetFiltersButton"),
@@ -62,6 +65,12 @@
     reportKpiMean: document.getElementById("reportKpiMean"),
     reportKpiMedian: document.getElementById("reportKpiMedian"),
     reportKpiMax: document.getElementById("reportKpiMax"),
+    reportCategoryEmptyState: document.getElementById("reportCategoryEmptyState"),
+    reportCategoryTableWrapper: document.getElementById("reportCategoryTableWrapper"),
+    reportCategoryTableBody: document.getElementById("reportCategoryTableBody"),
+    reportCategoryVisitEmptyState: document.getElementById("reportCategoryVisitEmptyState"),
+    reportCategoryVisitTableWrapper: document.getElementById("reportCategoryVisitTableWrapper"),
+    reportCategoryVisitTableBody: document.getElementById("reportCategoryVisitTableBody"),
     reportBandsChart: document.getElementById("reportBandsChart"),
     reportCentersChart: document.getElementById("reportCentersChart")
   };
@@ -79,6 +88,106 @@
   function initialize() {
     bindEvents();
     renderReport();
+  }
+
+  function ensureReportDetailUi() {
+    if (document.getElementById("reportCategoryTableBody")) {
+      return;
+    }
+
+    const chartsSection = document.querySelector(".report-charts");
+    if (!chartsSection) {
+      return;
+    }
+
+    const detailSection = document.createElement("section");
+    detailSection.className = "report-detail-tables";
+    detailSection.setAttribute("aria-labelledby", "reportDetailTablesTitle");
+    detailSection.innerHTML =
+      '<div class="report-section-head">' +
+        "<div>" +
+          '<p class="section-kicker">Análisis desagregado</p>' +
+          '<h3 id="reportDetailTablesTitle">Detalle de accesibilidad</h3>' +
+        "</div>" +
+      "</div>" +
+      '<article class="report-table-card" aria-labelledby="reportCategoryTitle">' +
+        '<div class="report-table-card__head">' +
+          "<div>" +
+            '<p class="section-kicker">Categoría profesional</p>' +
+            '<h4 id="reportCategoryTitle">Detalle por categoría</h4>' +
+          "</div>" +
+        "</div>" +
+        '<div class="report-table-empty is-hidden" id="reportCategoryEmptyState">No hay agendas válidas para mostrar el detalle por categoría.</div>' +
+        '<div class="report-table-wrapper" id="reportCategoryTableWrapper">' +
+          '<table class="report-table" aria-describedby="reportCategoryTitle">' +
+            "<thead><tr>" +
+              '<th scope="col">Categoría</th>' +
+              '<th scope="col" class="report-table__numeric">Agendas válidas</th>' +
+              '<th scope="col" class="report-table__numeric">% &lt;48h</th>' +
+              '<th scope="col" class="report-table__numeric">% &lt;5 días</th>' +
+              '<th scope="col" class="report-table__numeric">% ≥7 días</th>' +
+              '<th scope="col" class="report-table__numeric">Media</th>' +
+              '<th scope="col" class="report-table__numeric">Mediana</th>' +
+              '<th scope="col" class="report-table__numeric">Máxima</th>' +
+            "</tr></thead>" +
+            '<tbody id="reportCategoryTableBody"></tbody>' +
+          "</table>" +
+        "</div>" +
+      "</article>" +
+      '<article class="report-table-card" aria-labelledby="reportCategoryVisitTitle">' +
+        '<div class="report-table-card__head">' +
+          "<div>" +
+            '<p class="section-kicker">Categoría y agenda</p>' +
+            '<h4 id="reportCategoryVisitTitle">Detalle por categoría y tipo de visita</h4>' +
+          "</div>" +
+        "</div>" +
+        '<div class="report-table-empty is-hidden" id="reportCategoryVisitEmptyState">No hay agendas válidas para mostrar el detalle por categoría y tipo de visita.</div>' +
+        '<div class="report-table-wrapper" id="reportCategoryVisitTableWrapper">' +
+          '<table class="report-table report-table--compact" aria-describedby="reportCategoryVisitTitle">' +
+            "<thead><tr>" +
+              '<th scope="col">Categoría</th>' +
+              '<th scope="col">Tipo visita</th>' +
+              '<th scope="col" class="report-table__numeric">Agendas válidas</th>' +
+              '<th scope="col" class="report-table__numeric">% &lt;48h</th>' +
+              '<th scope="col" class="report-table__numeric">% &lt;5 días</th>' +
+              '<th scope="col" class="report-table__numeric">% ≥7 días</th>' +
+              '<th scope="col" class="report-table__numeric">Media</th>' +
+              '<th scope="col" class="report-table__numeric">Mediana</th>' +
+              '<th scope="col" class="report-table__numeric">Máxima</th>' +
+            "</tr></thead>" +
+            '<tbody id="reportCategoryVisitTableBody"></tbody>' +
+          "</table>" +
+        "</div>" +
+      "</article>";
+
+    chartsSection.parentNode.insertBefore(detailSection, chartsSection);
+  }
+
+  function ensureReportDetailStyles() {
+    if (document.getElementById("reportDetailRuntimeStyles")) {
+      return;
+    }
+
+    const style = document.createElement("style");
+    style.id = "reportDetailRuntimeStyles";
+    style.textContent =
+      ".report-detail-tables{display:grid;gap:18px}" +
+      ".report-table-card{padding:22px 24px;border-radius:24px;background:rgba(247,251,255,.82);border:1px solid rgba(27,55,88,.08);display:grid;gap:14px}" +
+      ".report-table-card__head{display:flex;justify-content:space-between;gap:16px;align-items:start}" +
+      ".report-table-card__head h4{margin:8px 0 0;font-family:var(--font-display);font-size:1.12rem;color:var(--ink-900)}" +
+      ".report-table-wrapper{overflow:auto;max-height:430px;border-radius:18px;border:1px solid rgba(27,55,88,.09);background:rgba(255,255,255,.86)}" +
+      ".report-table{width:100%;min-width:820px;border-collapse:separate;border-spacing:0;font-size:.9rem}" +
+      ".report-table--compact{min-width:980px;font-size:.86rem}" +
+      ".report-table th,.report-table td{padding:12px 14px;border-bottom:1px solid rgba(27,55,88,.08);color:var(--ink-700);vertical-align:top}" +
+      ".report-table thead th{position:sticky;top:0;z-index:1;background:linear-gradient(180deg,#f4f9ff,#edf5fb);color:var(--ink-900);font-size:.76rem;font-weight:800;text-transform:uppercase;letter-spacing:.055em;text-align:left;white-space:nowrap}" +
+      ".report-table tbody th{font-weight:800;color:var(--ink-900)}" +
+      ".report-table tbody tr:last-child th,.report-table tbody tr:last-child td{border-bottom:0}" +
+      ".report-table tbody tr:nth-child(even){background:rgba(40,118,185,.035)}" +
+      ".report-table__numeric{text-align:right!important;white-space:nowrap;font-variant-numeric:tabular-nums}" +
+      ".report-table__signal{color:#ad4852!important;font-weight:800}" +
+      ".report-table-empty{padding:22px;border-radius:18px;border:1px dashed rgba(40,118,185,.18);background:rgba(255,255,255,.74);color:var(--ink-500);text-align:center}" +
+      "@media print{.report-table-card{padding:12px 0;border-left:0;border-right:0;border-radius:0}.report-table-wrapper{max-height:none;overflow:visible;border-radius:0}.report-table,.report-table--compact{min-width:0;font-size:.72rem}.report-table thead{display:table-header-group}.report-table thead th{position:static;background:#eef4f9!important}.report-table th,.report-table td{padding:7px 6px;color:#24384d!important}.report-table tr{break-inside:avoid}}";
+    document.head.appendChild(style);
   }
 
   function bindEvents() {
@@ -155,6 +264,7 @@
       refs.reportEmptyState.textContent = "Cargue un archivo Excel para comenzar la elaboración del informe.";
       refs.reportContent.classList.add("is-hidden");
       setReportKpisEmpty();
+      setReportDetailTablesEmpty("Cargue un Excel para generar el detalle analítico.");
       setReportChartsEmpty("Cargue un Excel para generar el gráfico del informe.");
       return;
     }
@@ -168,6 +278,7 @@
         : "No hay información disponible para generar el informe con los filtros actuales.";
       refs.reportContent.classList.add("is-hidden");
       setReportKpisEmpty();
+      setReportDetailTablesEmpty("No hay agendas válidas con los filtros actuales.");
       setReportChartsEmpty("No hay agendas válidas con los filtros actuales.");
       return;
     }
@@ -181,7 +292,105 @@
     setKpiValue(refs.reportKpiMean, formatDayMetric(metrics.mean));
     setKpiValue(refs.reportKpiMedian, formatDayMetric(metrics.median));
     setKpiValue(refs.reportKpiMax, formatDayMetric(metrics.max));
+    renderReportDetailTables(validRows);
     renderReportCharts(validRows);
+  }
+
+  function renderReportDetailTables(validRows) {
+    const categoryRows = buildCategorySummaries(validRows);
+    const categoryVisitRows = buildCategoryVisitSummaries(validRows);
+
+    renderReportTable({
+      rows: categoryRows,
+      body: refs.reportCategoryTableBody,
+      wrapper: refs.reportCategoryTableWrapper,
+      emptyState: refs.reportCategoryEmptyState,
+      emptyMessage: "No hay agendas válidas para mostrar el detalle por categoría.",
+      rowRenderer: renderCategoryDetailRow
+    });
+
+    renderReportTable({
+      rows: categoryVisitRows,
+      body: refs.reportCategoryVisitTableBody,
+      wrapper: refs.reportCategoryVisitTableWrapper,
+      emptyState: refs.reportCategoryVisitEmptyState,
+      emptyMessage: "No hay agendas válidas para mostrar el detalle por categoría y tipo de visita.",
+      rowRenderer: renderCategoryVisitDetailRow
+    });
+  }
+
+  function renderReportTable(options) {
+    if (!options.body || !options.wrapper || !options.emptyState) {
+      return;
+    }
+
+    if (!options.rows.length) {
+      options.body.innerHTML = "";
+      options.wrapper.classList.add("is-hidden");
+      options.emptyState.classList.remove("is-hidden");
+      options.emptyState.textContent = options.emptyMessage;
+      return;
+    }
+
+    options.emptyState.classList.add("is-hidden");
+    options.wrapper.classList.remove("is-hidden");
+    options.body.innerHTML = options.rows.map(options.rowRenderer).join("");
+  }
+
+  function setReportDetailTablesEmpty(message) {
+    renderReportTable({
+      rows: [],
+      body: refs.reportCategoryTableBody,
+      wrapper: refs.reportCategoryTableWrapper,
+      emptyState: refs.reportCategoryEmptyState,
+      emptyMessage: message,
+      rowRenderer: renderCategoryDetailRow
+    });
+
+    renderReportTable({
+      rows: [],
+      body: refs.reportCategoryVisitTableBody,
+      wrapper: refs.reportCategoryVisitTableWrapper,
+      emptyState: refs.reportCategoryVisitEmptyState,
+      emptyMessage: message,
+      rowRenderer: renderCategoryVisitDetailRow
+    });
+  }
+
+  function renderCategoryDetailRow(row) {
+    return (
+      "<tr>" +
+      '<th scope="row">' + escapeHtml(row.category) + "</th>" +
+      renderNumericCell(formatInteger(row.totalValid)) +
+      renderNumericCell(formatPercent(row.pctUnder48h)) +
+      renderNumericCell(formatPercent(row.pctUnder5d)) +
+      renderNumericCell(formatPercent(row.pct7OrMore), row.pct7OrMore >= 20 ? "report-table__signal" : "") +
+      renderNumericCell(formatReportDelay(row.mean)) +
+      renderNumericCell(formatReportDelay(row.median)) +
+      renderNumericCell(formatReportDelay(row.max)) +
+      "</tr>"
+    );
+  }
+
+  function renderCategoryVisitDetailRow(row) {
+    return (
+      "<tr>" +
+      '<th scope="row">' + escapeHtml(row.category) + "</th>" +
+      "<td>" + escapeHtml(row.visitType) + "</td>" +
+      renderNumericCell(formatInteger(row.totalValid)) +
+      renderNumericCell(formatPercent(row.pctUnder48h)) +
+      renderNumericCell(formatPercent(row.pctUnder5d)) +
+      renderNumericCell(formatPercent(row.pct7OrMore), row.pct7OrMore >= 20 ? "report-table__signal" : "") +
+      renderNumericCell(formatReportDelay(row.mean)) +
+      renderNumericCell(formatReportDelay(row.median)) +
+      renderNumericCell(formatReportDelay(row.max)) +
+      "</tr>"
+    );
+  }
+
+  function renderNumericCell(value, extraClass) {
+    const className = ["report-table__numeric", extraClass].filter(Boolean).join(" ");
+    return '<td class="' + className + '">' + escapeHtml(value) + "</td>";
   }
 
   function renderReportCharts(validRows) {
@@ -257,6 +466,8 @@
       ? " sobre un total de " + formatInteger(filteredRows.length) + " registros filtrados"
       : "";
 
+    const detailAssessment = buildReportDetailAssessment(filteredRows);
+    const closingAssessment = [buildExecutiveAssessment(metrics), detailAssessment].filter(Boolean).join(" ");
     const paragraphs = [
       "El análisis realizado sobre las agendas filtradas incorpora " +
         formatInteger(metrics.totalValid) +
@@ -277,7 +488,7 @@
         " y una demora máxima de " +
         formatDaysText(metrics.max) +
         ".",
-      buildExecutiveAssessment(metrics)
+      closingAssessment
     ];
 
     return paragraphs.map(function (paragraph) {
@@ -295,6 +506,117 @@
     }
 
     return "En conjunto, la situación presenta un comportamiento intermedio, con margen de mejora en la reducción de las agendas que concentran mayores demoras.";
+  }
+
+  function buildReportDetailAssessment(filteredRows) {
+    const validRows = filteredRows.filter(function (row) {
+      return row.__hasValidAcc;
+    });
+    const categoryRows = buildCategorySummaries(validRows);
+    const categoryVisitRows = buildCategoryVisitSummaries(validRows);
+    const sentences = [];
+
+    if (categoryRows.length > 1) {
+      sentences.push(
+        "El análisis por categoría muestra que " +
+          categoryRows[0].category +
+          " presenta el comportamiento menos favorable dentro del subconjunto filtrado, con una demora media de " +
+          formatDaysText(categoryRows[0].mean) +
+          " y un " +
+          formatPercent(categoryRows[0].pct7OrMore) +
+          " de agendas con 7 o más días."
+      );
+    }
+
+    if (categoryVisitRows.length > 1) {
+      sentences.push(
+        "En el cruce por categoría y tipo de visita, la combinación " +
+          categoryVisitRows[0].category +
+          " - " +
+          categoryVisitRows[0].visitType +
+          " concentra los valores más elevados según el criterio de demora prolongada y demora media."
+      );
+    }
+
+    return sentences.join(" ");
+  }
+
+  function buildCategorySummaries(validRows) {
+    return summarizeGroupedRows(validRows, [
+      {
+        key: "category",
+        column: "Categoría",
+        fallback: "Sin categoría"
+      }
+    ]).sort(compareByDelayPressure);
+  }
+
+  function buildCategoryVisitSummaries(validRows) {
+    return summarizeGroupedRows(validRows, [
+      {
+        key: "category",
+        column: "Categoría",
+        fallback: "Sin categoría"
+      },
+      {
+        key: "visitType",
+        column: "Tipo visita",
+        fallback: "Sin tipo de visita"
+      }
+    ]).sort(function (left, right) {
+      const categoryOrder = left.category.localeCompare(right.category, "es", {
+        sensitivity: "base",
+        numeric: true
+      });
+
+      if (categoryOrder !== 0) {
+        return categoryOrder;
+      }
+
+      return compareByDelayPressure(left, right);
+    });
+  }
+
+  function summarizeGroupedRows(validRows, descriptors) {
+    const grouped = new Map();
+
+    validRows.forEach(function (row) {
+      const labels = descriptors.map(function (descriptor) {
+        return normalizeText(row[descriptor.column]) || descriptor.fallback;
+      });
+      const groupKey = labels.join("\u001f");
+
+      if (!grouped.has(groupKey)) {
+        const group = { rows: [] };
+        descriptors.forEach(function (descriptor, index) {
+          group[descriptor.key] = labels[index];
+        });
+        grouped.set(groupKey, group);
+      }
+
+      grouped.get(groupKey).rows.push(row);
+    });
+
+    return Array.from(grouped.values()).map(function (group) {
+      const metrics = calculateExecutiveMetrics(group.rows);
+      return Object.assign({}, group, metrics);
+    });
+  }
+
+  function compareByDelayPressure(left, right) {
+    return (
+      right.pct7OrMore - left.pct7OrMore ||
+      right.mean - left.mean ||
+      right.totalValid - left.totalValid ||
+      String(left.category || "").localeCompare(String(right.category || ""), "es", {
+        sensitivity: "base",
+        numeric: true
+      }) ||
+      String(left.visitType || "").localeCompare(String(right.visitType || ""), "es", {
+        sensitivity: "base",
+        numeric: true
+      })
+    );
   }
 
   function getReportZoneMeta(filteredRows) {
@@ -661,6 +983,10 @@
   function formatDayMetric(value) {
     const decimals = Math.abs(value - Math.round(value)) < 0.01 ? 0 : 1;
     return formatNumber(value, decimals) + " d";
+  }
+
+  function formatReportDelay(value) {
+    return formatNumber(value, 1) + " d";
   }
 
   function formatDaysText(value) {
