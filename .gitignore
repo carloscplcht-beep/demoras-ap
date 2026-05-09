@@ -1,0 +1,11 @@
+# Sensitive local datasets. Load these manually in the browser; never commit them.
+*.xlsx
+*.xls
+*.xlsm
+*.xlsb
+*.csv
+~$*
+
+# Local audit/test artifacts generated during validation.
+_audit*/
+*.pdf
