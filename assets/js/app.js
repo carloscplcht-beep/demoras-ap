@@ -102,9 +102,10 @@
     prevPageButton: document.getElementById("prevPageButton"),
     nextPageButton: document.getElementById("nextPageButton"),
     summaryScope: document.getElementById("summaryScope"),
-    kpiPct48h: document.getElementById("kpiPct48h"),
-    kpiPct5d: document.getElementById("kpiPct5d"),
-    kpiPct7d: document.getElementById("kpiPct7d"),
+    kpiPct0to2: document.getElementById("kpiPct0to2"),
+    kpiPct0to3: document.getElementById("kpiPct0to3"),
+    kpiPct0to6: document.getElementById("kpiPct0to6"),
+    kpiPct7Plus: document.getElementById("kpiPct7Plus"),
     kpiTotalValid: document.getElementById("kpiTotalValid"),
     kpiMean: document.getElementById("kpiMean"),
     kpiMedian: document.getElementById("kpiMedian"),
@@ -116,7 +117,26 @@
     categoryChart: document.getElementById("categoryChart"),
     visitTypeChart: document.getElementById("visitTypeChart"),
     histogramChart: document.getElementById("histogramChart"),
-    centerBandsChart: document.getElementById("centerBandsChart")
+    centerBandsChart: document.getElementById("centerBandsChart"),
+    printReportButton: document.getElementById("printReportButton"),
+    reportScope: document.getElementById("reportScope"),
+    reportArea: document.getElementById("reportArea"),
+    reportZones: document.getElementById("reportZones"),
+    reportZonesDetail: document.getElementById("reportZonesDetail"),
+    reportCutoffDate: document.getElementById("reportCutoffDate"),
+    reportSummaryBody: document.getElementById("reportSummaryBody"),
+    reportEmptyState: document.getElementById("reportEmptyState"),
+    reportContent: document.getElementById("reportContent"),
+    reportKpiPct0to2: document.getElementById("reportKpiPct0to2"),
+    reportKpiPct0to3: document.getElementById("reportKpiPct0to3"),
+    reportKpiPct0to6: document.getElementById("reportKpiPct0to6"),
+    reportKpiPct7Plus: document.getElementById("reportKpiPct7Plus"),
+    reportKpiTotalValid: document.getElementById("reportKpiTotalValid"),
+    reportKpiMean: document.getElementById("reportKpiMean"),
+    reportKpiMedian: document.getElementById("reportKpiMedian"),
+    reportKpiMax: document.getElementById("reportKpiMax"),
+    reportBandsChart: document.getElementById("reportBandsChart"),
+    reportCentersChart: document.getElementById("reportCentersChart")
   };
 
   FILTERS.forEach((filter) => {
@@ -464,6 +484,7 @@
     renderTable();
     renderSummary();
     renderCharts();
+    renderReport();
     toggleControls();
   }
 
@@ -543,6 +564,7 @@
     refs.pageSizeSelect.disabled = !hasRows;
     refs.resetFiltersButton.disabled = !hasRows;
     refs.exportCsvButton.disabled = !tableRows.length;
+    refs.printReportButton.disabled = !hasRows;
     refs.prevPageButton.disabled = !hasRows || state.currentPage <= 1;
     refs.nextPageButton.disabled = !hasRows || state.currentPage >= getTotalPages(tableRows.length);
   }
@@ -600,9 +622,10 @@
       : "Sin datos analiticos";
 
     if (!metrics) {
-      setKpiValue(refs.kpiPct48h, "--");
-      setKpiValue(refs.kpiPct5d, "--");
-      setKpiValue(refs.kpiPct7d, "--");
+      setKpiValue(refs.kpiPct0to2, "--");
+      setKpiValue(refs.kpiPct0to3, "--");
+      setKpiValue(refs.kpiPct0to6, "--");
+      setKpiValue(refs.kpiPct7Plus, "--");
       setKpiValue(refs.kpiTotalValid, "--");
       setKpiValue(refs.kpiMean, "--");
       setKpiValue(refs.kpiMedian, "--");
@@ -612,9 +635,10 @@
       return;
     }
 
-    setKpiValue(refs.kpiPct48h, formatPercent(metrics.pctUnder48h));
-    setKpiValue(refs.kpiPct5d, formatPercent(metrics.pctUnder5d));
-    setKpiValue(refs.kpiPct7d, formatPercent(metrics.pct7OrMore));
+    setKpiValue(refs.kpiPct0to2, formatPercent(metrics.pct0to2));
+    setKpiValue(refs.kpiPct0to3, formatPercent(metrics.pct0to3));
+    setKpiValue(refs.kpiPct0to6, formatPercent(metrics.pct0to6));
+    setKpiValue(refs.kpiPct7Plus, formatPercent(metrics.pct7Plus));
     setKpiValue(refs.kpiTotalValid, formatInteger(metrics.totalValid));
     setKpiValue(refs.kpiMean, formatDayMetric(metrics.mean));
     setKpiValue(refs.kpiMedian, formatDayMetric(metrics.median));
@@ -641,14 +665,219 @@
 
     window.DemorasCharts.renderDonutChart(refs.summaryDonutChart, {
       segments: [
-        { label: "<48h", value: delayBands[0].count, color: delayBands[0].color },
-        { label: "2-4 dias", value: delayBands[1].count, color: delayBands[1].color },
-        { label: "5-6 dias", value: delayBands[2].count, color: delayBands[2].color },
-        { label: ">=7 dias", value: delayBands[3].count + delayBands[4].count, color: PALETTE.red }
+        { label: "0-2 días", value: delayBands[0].count, color: delayBands[0].color },
+        { label: "3 días", value: delayBands[1].count, color: delayBands[1].color },
+        { label: "4-6 días", value: delayBands[2].count, color: delayBands[2].color },
+        { label: "7 o más días", value: delayBands[3].count, color: PALETTE.red }
       ],
       centerLabel: "Agendas",
       centerValue: formatInteger(total)
     });
+  }
+
+  function renderReport() {
+    const filteredRows = getFilteredRows();
+    const validRows = filteredRows.filter((row) => row.__hasValidAcc);
+    const metrics = calculateExecutiveMetrics(validRows);
+    const latestCutoff = getLatestDateSortValue(filteredRows, "Fecha Corte");
+    const zoneMeta = getReportZoneMeta(filteredRows);
+
+    refs.reportArea.textContent = state.filters.area || "Todas las áreas";
+    refs.reportZones.textContent = zoneMeta.value;
+    refs.reportZonesDetail.textContent = zoneMeta.detail;
+    refs.reportCutoffDate.textContent = latestCutoff == null ? "Fecha de corte no disponible" : formatLongDate(latestCutoff);
+    refs.reportScope.textContent = metrics
+      ? formatInteger(metrics.totalValid) + " agendas válidas analizadas"
+      : "Sin información analítica";
+
+    if (!state.rows.length) {
+      refs.reportSummaryBody.innerHTML = "<p>Cargue un archivo Excel para generar el informe.</p>";
+      refs.reportEmptyState.classList.remove("is-hidden");
+      refs.reportEmptyState.textContent = "Cargue un archivo Excel para comenzar la elaboración del informe.";
+      refs.reportContent.classList.add("is-hidden");
+      setReportKpisEmpty();
+      window.DemorasCharts.setEmpty(refs.reportBandsChart, "Cargue un Excel para generar el gráfico del informe.");
+      window.DemorasCharts.setEmpty(refs.reportCentersChart, "Cargue un Excel para generar el gráfico del informe.");
+      return;
+    }
+
+    refs.reportSummaryBody.innerHTML = buildReportSummaryMarkup(filteredRows, metrics, latestCutoff);
+
+    if (!metrics) {
+      refs.reportEmptyState.classList.remove("is-hidden");
+      refs.reportEmptyState.textContent = filteredRows.length
+        ? "No hay agendas válidas con Accesibilidad numérica en el subconjunto filtrado."
+        : "No hay información disponible para generar el informe con los filtros actuales.";
+      refs.reportContent.classList.add("is-hidden");
+      setReportKpisEmpty();
+      window.DemorasCharts.setEmpty(refs.reportBandsChart, "No hay agendas válidas con los filtros actuales.");
+      window.DemorasCharts.setEmpty(refs.reportCentersChart, "No hay agendas válidas con los filtros actuales.");
+      return;
+    }
+
+    refs.reportEmptyState.classList.add("is-hidden");
+    refs.reportContent.classList.remove("is-hidden");
+    setKpiValue(refs.reportKpiPct0to2, formatPercent(metrics.pct0to2));
+    setKpiValue(refs.reportKpiPct0to3, formatPercent(metrics.pct0to3));
+    setKpiValue(refs.reportKpiPct0to6, formatPercent(metrics.pct0to6));
+    setKpiValue(refs.reportKpiPct7Plus, formatPercent(metrics.pct7Plus));
+    setKpiValue(refs.reportKpiTotalValid, formatInteger(metrics.totalValid));
+    setKpiValue(refs.reportKpiMean, formatDayMetric(metrics.mean));
+    setKpiValue(refs.reportKpiMedian, formatDayMetric(metrics.median));
+    setKpiValue(refs.reportKpiMax, formatDayMetric(metrics.max));
+
+    renderReportCharts(validRows);
+  }
+
+  function renderReportCharts(validRows) {
+    const delayBands = buildExecutiveDelayBands(validRows);
+    const topCenters = aggregateByField(validRows, "Centro")
+      .sort((a, b) => b.mean - a.mean || b.count - a.count)
+      .slice(0, 6)
+      .map((item) => ({
+        label: item.label,
+        value: item.mean,
+        color: PALETTE.blue,
+        note: "n=" + formatInteger(item.count)
+      }));
+
+    window.DemorasCharts.renderVerticalBarChart(refs.reportBandsChart, {
+      items: delayBands.map((band) => ({
+        label: band.label,
+        value: band.count,
+        color: band.color,
+        share: band.share
+      })),
+      valueFormatter: formatInteger,
+      annotationFormatter: (item) => formatPercent(item.share),
+      titleFormatter: (item) => formatInteger(item.value) + " agendas"
+    });
+
+    window.DemorasCharts.renderHorizontalBarChart(refs.reportCentersChart, {
+      items: topCenters,
+      valueFormatter: formatDayMetric,
+      emptyMessage: "No hay centros con agendas válidas para representar en el informe."
+    });
+  }
+
+  function setReportKpisEmpty() {
+    setKpiValue(refs.reportKpiPct0to2, "--");
+    setKpiValue(refs.reportKpiPct0to3, "--");
+    setKpiValue(refs.reportKpiPct0to6, "--");
+    setKpiValue(refs.reportKpiPct7Plus, "--");
+    setKpiValue(refs.reportKpiTotalValid, "--");
+    setKpiValue(refs.reportKpiMean, "--");
+    setKpiValue(refs.reportKpiMedian, "--");
+    setKpiValue(refs.reportKpiMax, "--");
+  }
+
+  function buildReportSummaryMarkup(filteredRows, metrics, latestCutoff) {
+    if (!filteredRows.length) {
+      return "<p>No hay información disponible para generar un informe con la selección actual.</p>";
+    }
+
+    if (!metrics) {
+      return "<p>El subconjunto filtrado no dispone de agendas con Accesibilidad numérica válida, por lo que no es posible elaborar indicadores ejecutivos en este momento.</p>";
+    }
+
+    const cutoffText = latestCutoff == null
+      ? "No se dispone de una fecha de corte válida en el subconjunto filtrado."
+      : "La fecha de corte más reciente disponible es " + formatLongDate(latestCutoff) + ".";
+    const filteredBaseText = filteredRows.length !== metrics.totalValid
+      ? " sobre un total de " + formatInteger(filteredRows.length) + " registros filtrados"
+      : "";
+    const assessment = buildExecutiveAssessment(metrics);
+
+    const paragraphs = [
+      "El análisis realizado sobre las agendas filtradas incorpora " +
+        formatInteger(metrics.totalValid) +
+        " agendas válidas para el cálculo ejecutivo" +
+        filteredBaseText +
+        ". " +
+        cutoffText,
+      "En términos de accesibilidad, el " +
+        formatPercent(metrics.pct0to2) +
+        " se sitúa entre 0 y 2 días, el " +
+        formatPercent(metrics.pct0to3) +
+        " entre 0 y 3 días y el " +
+        formatPercent(metrics.pct0to6) +
+        " entre 0 y 6 días. Las agendas con demora de 7 o más días representan el " +
+        formatPercent(metrics.pct7Plus) +
+        " del total analizado, con una demora media de " +
+        formatDaysText(metrics.mean) +
+        ", una mediana de " +
+        formatDaysText(metrics.median) +
+        " y una demora máxima de " +
+        formatDaysText(metrics.max) +
+        ".",
+      assessment
+    ];
+
+    return paragraphs.map((paragraph) => "<p>" + escapeHtml(paragraph) + "</p>").join("");
+  }
+
+  function buildExecutiveAssessment(metrics) {
+    if (metrics.pct7Plus >= 35 || metrics.mean >= 7) {
+      return "En conjunto, la distribución observada refleja una presión relevante en la accesibilidad, con un peso significativo de agendas en demora prolongada.";
+    }
+
+    if (metrics.pct0to2 >= 60 && metrics.pct7Plus <= 15) {
+      return "En conjunto, la situación muestra un comportamiento favorable, con predominio de agendas en tramos de demora corta y una presencia contenida de demoras prolongadas.";
+    }
+
+    return "En conjunto, la situación presenta un comportamiento intermedio, con margen de mejora en la reducción de las agendas que concentran mayores demoras.";
+  }
+
+  function getLatestDateSortValue(rows, column) {
+    const timestamps = rows
+      .map((row) => row.__dateSort && row.__dateSort[column])
+      .filter((value) => Number.isFinite(value));
+
+    if (!timestamps.length) {
+      return null;
+    }
+
+    return Math.max.apply(null, timestamps);
+  }
+
+  function getReportZoneMeta(filteredRows) {
+    if (state.filters.zona) {
+      return {
+        value: state.filters.zona,
+        detail: ""
+      };
+    }
+
+    const filteredZones = uniqueSorted(filteredRows.map((row) => normalizeText(row["Zona"])).filter(Boolean));
+    const allZones = uniqueSorted(state.rows.map((row) => normalizeText(row["Zona"])).filter(Boolean));
+
+    if (!filteredZones.length) {
+      return {
+        value: "Todas las zonas",
+        detail: ""
+      };
+    }
+
+    if (filteredZones.length === allZones.length) {
+      return {
+        value: "Todas las zonas",
+        detail: ""
+      };
+    }
+
+    return {
+      value: "Todas las zonas",
+      detail: "Zonas incluidas en el subconjunto filtrado: " + summarizeTextList(filteredZones, 4) + "."
+    };
+  }
+
+  function summarizeTextList(values, visibleItems) {
+    if (values.length <= visibleItems) {
+      return values.join(", ");
+    }
+
+    const visible = values.slice(0, visibleItems).join(", ");
+    return visible + " y " + formatInteger(values.length - visibleItems) + " más";
   }
 
   function renderCharts() {
@@ -716,10 +945,10 @@
         label: item.label,
         total: item.total,
         segments: [
-          { label: "<48h", value: item.band1, color: PALETTE.green },
-          { label: "2-4 dias", value: item.band2, color: PALETTE.teal },
-          { label: "5-6 dias", value: item.band3, color: PALETTE.amber },
-          { label: ">=7 dias", value: item.band4, color: PALETTE.red }
+          { label: "0-2 días", value: item.band0to2, color: PALETTE.green },
+          { label: "3 días", value: item.band3, color: PALETTE.teal },
+          { label: "4-6 días", value: item.band4to6, color: PALETTE.amber },
+          { label: "7 o más días", value: item.band7Plus, color: PALETTE.red }
         ]
       }));
 
@@ -752,10 +981,10 @@
     window.DemorasCharts.renderStackedBarChart(refs.centerBandsChart, {
       items: centerBands,
       legend: [
-        { label: "<48h", color: PALETTE.green },
-        { label: "2-4 dias", color: PALETTE.teal },
-        { label: "5-6 dias", color: PALETTE.amber },
-        { label: ">=7 dias", color: PALETTE.red }
+        { label: "0-2 días", color: PALETTE.green },
+        { label: "3 días", color: PALETTE.teal },
+        { label: "4-6 días", color: PALETTE.amber },
+        { label: "7 o más días", color: PALETTE.red }
       ]
     });
   }
@@ -802,10 +1031,10 @@
           label: label,
           total: 0,
           sum: 0,
-          band1: 0,
-          band2: 0,
+          band0to2: 0,
           band3: 0,
-          band4: 0
+          band4to6: 0,
+          band7Plus: 0
         });
       }
 
@@ -813,14 +1042,14 @@
       group.total += 1;
       group.sum += row.__acc;
 
-      if (row.__acc < 2) {
-        group.band1 += 1;
-      } else if (row.__acc < 5) {
-        group.band2 += 1;
-      } else if (row.__acc < 7) {
+      if (row.__acc <= 2) {
+        group.band0to2 += 1;
+      } else if (row.__acc === 3) {
         group.band3 += 1;
+      } else if (row.__acc <= 6) {
+        group.band4to6 += 1;
       } else {
-        group.band4 += 1;
+        group.band7Plus += 1;
       }
     });
 
@@ -828,10 +1057,10 @@
       label: group.label,
       total: group.total,
       mean: group.sum / group.total,
-      band1: group.band1,
-      band2: group.band2,
+      band0to2: group.band0to2,
       band3: group.band3,
-      band4: group.band4
+      band4to6: group.band4to6,
+      band7Plus: group.band7Plus
     }));
   }
 
@@ -866,24 +1095,21 @@
   function buildExecutiveDelayBands(rows) {
     const total = rows.length || 1;
     const bands = [
-      { label: "<48h", count: 0, color: PALETTE.green },
-      { label: "2-4 dias", count: 0, color: PALETTE.teal },
-      { label: "5-6 dias", count: 0, color: PALETTE.amber },
-      { label: "7-13 dias", count: 0, color: PALETTE.red },
-      { label: "14+ dias", count: 0, color: "#9f4c69" }
+      { label: "0-2 días", count: 0, color: PALETTE.green },
+      { label: "3 días", count: 0, color: PALETTE.teal },
+      { label: "4-6 días", count: 0, color: PALETTE.amber },
+      { label: "7 o más días", count: 0, color: PALETTE.red }
     ];
 
     rows.forEach((row) => {
-      if (row.__acc < 2) {
+      if (row.__acc <= 2) {
         bands[0].count += 1;
-      } else if (row.__acc < 5) {
+      } else if (row.__acc === 3) {
         bands[1].count += 1;
-      } else if (row.__acc < 7) {
+      } else if (row.__acc <= 6) {
         bands[2].count += 1;
-      } else if (row.__acc < 14) {
-        bands[3].count += 1;
       } else {
-        bands[4].count += 1;
+        bands[3].count += 1;
       }
     });
 
@@ -901,15 +1127,17 @@
 
     const values = validRows.map((row) => row.__acc).slice().sort((a, b) => a - b);
     const totalValid = values.length;
-    const countUnder48h = values.filter((value) => value < 2).length;
-    const countUnder5d = values.filter((value) => value < 5).length;
-    const count7OrMore = values.filter((value) => value >= 7).length;
+    const count0to2 = values.filter((value) => value >= 0 && value <= 2).length;
+    const count0to3 = values.filter((value) => value >= 0 && value <= 3).length;
+    const count0to6 = values.filter((value) => value >= 0 && value <= 6).length;
+    const count7Plus = values.filter((value) => value >= 7).length;
 
     return {
       totalValid: totalValid,
-      pctUnder48h: (countUnder48h / totalValid) * 100,
-      pctUnder5d: (countUnder5d / totalValid) * 100,
-      pct7OrMore: (count7OrMore / totalValid) * 100,
+      pct0to2: (count0to2 / totalValid) * 100,
+      pct0to3: (count0to3 / totalValid) * 100,
+      pct0to6: (count0to6 / totalValid) * 100,
+      pct7Plus: (count7Plus / totalValid) * 100,
       mean: average(values),
       median: median(values),
       max: Math.max(...values)
@@ -1023,6 +1251,11 @@
     renderAll();
   }
 
+  function handlePrintReport() {
+    setActiveTab("report");
+    window.print();
+  }
+
   function resetFilterValues() {
     FILTERS.forEach((filter) => {
       state.filters[filter.key] = "";
@@ -1063,9 +1296,9 @@
 
     if (header === "Accesibilidad" && row.__hasValidAcc) {
       let className = "cell-chip";
-      if (row.__acc < 2) {
+      if (row.__acc <= 2) {
         className += " cell-chip--success";
-      } else if (row.__acc < 7) {
+      } else if (row.__acc <= 6) {
         className += " cell-chip--warning";
       } else {
         className += " cell-chip--danger";
@@ -1133,12 +1366,15 @@
   }
 
   function setKpiValue(element, value) {
+    if (!element) {
+      return;
+    }
     element.textContent = value;
   }
 
   function parseNumericValue(value) {
     if (typeof value === "number" && Number.isFinite(value)) {
-      return value;
+      return value >= 0 ? value : NaN;
     }
 
     const textValue = normalizeText(value);
@@ -1148,7 +1384,7 @@
 
     const normalized = textValue.replace(/\s+/g, "").replace(",", ".");
     const parsed = Number(normalized);
-    return Number.isFinite(parsed) ? parsed : NaN;
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : NaN;
   }
 
   function normalizeText(value) {
@@ -1198,6 +1434,11 @@
     return formatNumber(value, decimals) + " d";
   }
 
+  function formatDaysText(value) {
+    const decimals = Math.abs(value - Math.round(value)) < 0.01 ? 0 : 1;
+    return formatNumber(value, decimals) + " días";
+  }
+
   function formatInteger(value) {
     return formatNumber(value, 0);
   }
@@ -1216,6 +1457,15 @@
       year: "numeric",
       timeZone: "UTC"
     }).format(date);
+  }
+
+  function formatLongDate(timestamp) {
+    return new Intl.DateTimeFormat("es-ES", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      timeZone: "UTC"
+    }).format(new Date(timestamp));
   }
 
   function formatDateTime(date) {

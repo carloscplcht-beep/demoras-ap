@@ -188,10 +188,11 @@
             <div class="section-kicker">Criterio ejecutivo</div>
             <h2>Indicadores principales</h2>
             <ul class="method-list">
-              <li>% agendas con demora &lt;48h: Accesibilidad &lt; 2</li>
-              <li>% agendas con demora &lt;5 días: Accesibilidad &lt; 5</li>
-              <li>% agendas con 7 o más días: Accesibilidad &gt;= 7</li>
-              <li>Los cálculos se realizan solo con agendas válidas y filtros activos.</li>
+              <li><strong>% 0-2 días:</strong> agendas con Accesibilidad entre 0 y 2 días.</li>
+              <li><strong>% 0-3 días:</strong> agendas con Accesibilidad entre 0 y 3 días.</li>
+              <li><strong>% 0-6 días:</strong> agendas con Accesibilidad entre 0 y 6 días.</li>
+              <li><strong>% 7 o más días:</strong> agendas con Accesibilidad igual o superior a 7 días.</li>
+              <li>Los indicadores 0-2, 0-3 y 0-6 días son acumulativos y se calculan con filtros activos.</li>
             </ul>
           </article>
         </div>
@@ -260,21 +261,27 @@
 
           <div class="kpi-grid">
             <article class="kpi-card kpi-card--positive">
-              <span class="kpi-card__label">% agendas con demora &lt;48h</span>
-              <strong class="kpi-card__value" id="kpiPct48h">--</strong>
-              <span class="kpi-card__detail">Accesibilidad &lt; 2</span>
+              <span class="kpi-card__label">% 0-2 días</span>
+              <strong class="kpi-card__value" id="kpiPct0to2">--</strong>
+              <span class="kpi-card__detail">Indicador acumulativo DGAP</span>
+            </article>
+
+            <article class="kpi-card kpi-card--positive">
+              <span class="kpi-card__label">% 0-3 días</span>
+              <strong class="kpi-card__value" id="kpiPct0to3">--</strong>
+              <span class="kpi-card__detail">Indicador acumulativo DGAP</span>
             </article>
 
             <article class="kpi-card kpi-card--positive-soft">
-              <span class="kpi-card__label">% agendas con demora &lt;5 días</span>
-              <strong class="kpi-card__value" id="kpiPct5d">--</strong>
-              <span class="kpi-card__detail">Accesibilidad &lt; 5</span>
+              <span class="kpi-card__label">% 0-6 días</span>
+              <strong class="kpi-card__value" id="kpiPct0to6">--</strong>
+              <span class="kpi-card__detail">Indicador acumulativo DGAP</span>
             </article>
 
             <article class="kpi-card kpi-card--alert">
-              <span class="kpi-card__label">% agendas con 7 o más días</span>
-              <strong class="kpi-card__value" id="kpiPct7d">--</strong>
-              <span class="kpi-card__detail">Accesibilidad &gt;= 7</span>
+              <span class="kpi-card__label">% 7 o más días</span>
+              <strong class="kpi-card__value" id="kpiPct7Plus">--</strong>
+              <span class="kpi-card__detail">Demora igual o superior a 7 días</span>
             </article>
 
             <article class="kpi-card">
@@ -332,9 +339,9 @@
           <h2>Cómo se calculan los indicadores</h2>
           <ul class="method-list">
             <li>Solo se incluyen agendas con valor numérico en la columna <strong>Accesibilidad</strong>.</li>
-            <li>El porcentaje &lt;48h considera valores 0 o 1 en Accesibilidad.</li>
-            <li>El porcentaje &lt;5 días considera valores 0, 1, 2, 3 y 4.</li>
-            <li>El porcentaje de 7 o más días considera valores iguales o superiores a 7.</li>
+            <li>Los indicadores 0-2, 0-3 y 0-6 días son acumulativos.</li>
+            <li>El indicador 7 o más días recoge agendas con demora igual o superior a 7 días.</li>
+            <li>Los gráficos de distribución utilizan tramos excluyentes: 0-2, 3, 4-6 y 7 o más días.</li>
             <li>Media, mediana y máximo se recalculan con el subconjunto filtrado en cada momento.</li>
           </ul>
         </article>
@@ -478,21 +485,27 @@
 
                 <div class="kpi-grid report-kpi-grid">
                   <article class="kpi-card kpi-card--positive">
-                    <span class="kpi-card__label">% agendas con demora &lt;48h</span>
-                    <strong class="kpi-card__value" id="reportKpiPct48h">--</strong>
-                    <span class="kpi-card__detail">Accesibilidad &lt; 2</span>
+                    <span class="kpi-card__label">% 0-2 días</span>
+                    <strong class="kpi-card__value" id="reportKpiPct0to2">--</strong>
+                    <span class="kpi-card__detail">Indicador acumulativo DGAP</span>
+                  </article>
+
+                  <article class="kpi-card kpi-card--positive">
+                    <span class="kpi-card__label">% 0-3 días</span>
+                    <strong class="kpi-card__value" id="reportKpiPct0to3">--</strong>
+                    <span class="kpi-card__detail">Indicador acumulativo DGAP</span>
                   </article>
 
                   <article class="kpi-card kpi-card--positive-soft">
-                    <span class="kpi-card__label">% agendas con demora &lt;5 días</span>
-                    <strong class="kpi-card__value" id="reportKpiPct5d">--</strong>
-                    <span class="kpi-card__detail">Accesibilidad &lt; 5</span>
+                    <span class="kpi-card__label">% 0-6 días</span>
+                    <strong class="kpi-card__value" id="reportKpiPct0to6">--</strong>
+                    <span class="kpi-card__detail">Indicador acumulativo DGAP</span>
                   </article>
 
                   <article class="kpi-card kpi-card--alert">
-                    <span class="kpi-card__label">% agendas con 7 o más días</span>
-                    <strong class="kpi-card__value" id="reportKpiPct7d">--</strong>
-                    <span class="kpi-card__detail">Accesibilidad &gt;= 7</span>
+                    <span class="kpi-card__label">% 7 o más días</span>
+                    <strong class="kpi-card__value" id="reportKpiPct7Plus">--</strong>
+                    <span class="kpi-card__detail">Demora igual o superior a 7 días</span>
                   </article>
 
                   <article class="kpi-card">
@@ -561,8 +574,9 @@
                 </div>
                 <ul class="method-list report-methodology__list">
                   <li>Los indicadores se calculan únicamente sobre agendas con valor numérico en <strong>Accesibilidad</strong>.</li>
-                  <li>El porcentaje con demora &lt;48h corresponde a valores 0 o 1; el porcentaje &lt;5 días a valores 0 a 4.</li>
-                  <li>El porcentaje de 7 o más días considera valores iguales o superiores a 7 en el subconjunto filtrado.</li>
+                  <li>Los porcentajes 0-2, 0-3 y 0-6 días son indicadores acumulativos.</li>
+                  <li>El indicador 7 o más días recoge las agendas con demora igual o superior a 7 días.</li>
+                  <li>Los gráficos de distribución utilizan tramos excluyentes: 0-2, 3, 4-6 y 7 o más días.</li>
                 </ul>
               </section>
             </div>

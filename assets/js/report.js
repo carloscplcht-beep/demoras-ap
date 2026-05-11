@@ -43,6 +43,7 @@
     renderTimer: 0
   };
 
+  ensureDgapInterface();
   ensureReportDetailUi();
   ensureReportDetailStyles();
 
@@ -58,9 +59,26 @@
     reportSummaryBody: document.getElementById("reportSummaryBody"),
     reportEmptyState: document.getElementById("reportEmptyState"),
     reportContent: document.getElementById("reportContent"),
-    reportKpiPct48h: document.getElementById("reportKpiPct48h"),
-    reportKpiPct5d: document.getElementById("reportKpiPct5d"),
-    reportKpiPct7d: document.getElementById("reportKpiPct7d"),
+    summaryKpiPct0to2: document.getElementById("kpiPct0to2"),
+    summaryKpiPct0to3: document.getElementById("kpiPct0to3"),
+    summaryKpiPct0to6: document.getElementById("kpiPct0to6"),
+    summaryKpiPct7Plus: document.getElementById("kpiPct7Plus"),
+    summaryKpiTotalValid: document.getElementById("kpiTotalValid"),
+    summaryKpiMean: document.getElementById("kpiMean"),
+    summaryKpiMedian: document.getElementById("kpiMedian"),
+    summaryKpiMax: document.getElementById("kpiMax"),
+    summaryBandsChart: document.getElementById("summaryBandsChart"),
+    summaryDonutChart: document.getElementById("summaryDonutChart"),
+    centersChart: document.getElementById("centersChart"),
+    zonesChart: document.getElementById("zonesChart"),
+    categoryChart: document.getElementById("categoryChart"),
+    visitTypeChart: document.getElementById("visitTypeChart"),
+    histogramChart: document.getElementById("histogramChart"),
+    centerBandsChart: document.getElementById("centerBandsChart"),
+    reportKpiPct0to2: document.getElementById("reportKpiPct0to2"),
+    reportKpiPct0to3: document.getElementById("reportKpiPct0to3"),
+    reportKpiPct0to6: document.getElementById("reportKpiPct0to6"),
+    reportKpiPct7Plus: document.getElementById("reportKpiPct7Plus"),
     reportKpiTotalValid: document.getElementById("reportKpiTotalValid"),
     reportKpiMean: document.getElementById("reportKpiMean"),
     reportKpiMedian: document.getElementById("reportKpiMedian"),
@@ -88,6 +106,71 @@
   function initialize() {
     bindEvents();
     renderReport();
+  }
+
+  function ensureDgapInterface() {
+    patchKpiCard("kpiPct0to2", "% 0-2 días", "Indicador DGAP acumulativo", "Accesibilidad entre 0 y 2 días.");
+    insertKpiCardAfter("kpiPct0to2", "kpiPct0to3", "% 0-3 días", "Indicador DGAP acumulativo", "Accesibilidad entre 0 y 3 días.");
+    patchKpiCard("kpiPct0to6", "% 0-6 días", "Indicador DGAP acumulativo", "Accesibilidad entre 0 y 6 días.");
+    patchKpiCard("kpiPct7Plus", "% 7 o más días", "Demora prolongada", "Accesibilidad igual o superior a 7 días.");
+
+    patchKpiCard("reportKpiPct0to2", "% 0-2 días", "Indicador DGAP acumulativo", "Accesibilidad entre 0 y 2 días.");
+    insertKpiCardAfter("reportKpiPct0to2", "reportKpiPct0to3", "% 0-3 días", "Indicador DGAP acumulativo", "Accesibilidad entre 0 y 3 días.");
+    patchKpiCard("reportKpiPct0to6", "% 0-6 días", "Indicador DGAP acumulativo", "Accesibilidad entre 0 y 6 días.");
+    patchKpiCard("reportKpiPct7Plus", "% 7 o más días", "Demora prolongada", "Accesibilidad igual o superior a 7 días.");
+
+    document.querySelectorAll(".method-list").forEach(function (list) {
+      list.innerHTML =
+        "<li><strong>% 0-2 días:</strong> agendas con Accesibilidad entre 0 y 2 días.</li>" +
+        "<li><strong>% 0-3 días:</strong> agendas con Accesibilidad entre 0 y 3 días.</li>" +
+        "<li><strong>% 0-6 días:</strong> agendas con Accesibilidad entre 0 y 6 días.</li>" +
+        "<li><strong>% 7 o más días:</strong> agendas con Accesibilidad igual o superior a 7 días.</li>" +
+        "<li>Los indicadores 0-2, 0-3 y 0-6 días son acumulativos. Los gráficos de distribución usan tramos excluyentes: 0-2, 3, 4-6 y 7 o más días.</li>";
+    });
+  }
+
+  function insertKpiCardAfter(anchorValueId, newValueId, label, kicker, detail) {
+    if (document.getElementById(newValueId)) {
+      patchKpiCard(newValueId, label, kicker, detail);
+      return;
+    }
+
+    const anchorValue = document.getElementById(anchorValueId);
+    const anchorCard = anchorValue ? anchorValue.closest(".kpi-card") : null;
+    if (!anchorCard || !anchorCard.parentNode) {
+      return;
+    }
+
+    const clone = anchorCard.cloneNode(true);
+    const clonedValue = clone.querySelector(".kpi-card__value");
+    if (clonedValue) {
+      clonedValue.id = newValueId;
+      clonedValue.textContent = "--";
+    }
+    anchorCard.parentNode.insertBefore(clone, anchorCard.nextSibling);
+    patchKpiCard(newValueId, label, kicker, detail);
+  }
+
+  function patchKpiCard(valueId, label, kicker, detail) {
+    const value = document.getElementById(valueId);
+    const card = value ? value.closest(".kpi-card") : null;
+    if (!card) {
+      return;
+    }
+
+    const kickerElement = card.querySelector(".kpi-card__kicker");
+    const labelElement = card.querySelector(".kpi-card__label");
+    const detailElement = card.querySelector(".kpi-card__detail");
+
+    if (kickerElement) {
+      kickerElement.textContent = kicker;
+    }
+    if (labelElement) {
+      labelElement.textContent = label;
+    }
+    if (detailElement) {
+      detailElement.textContent = detail;
+    }
   }
 
   function ensureReportDetailUi() {
@@ -123,9 +206,10 @@
             "<thead><tr>" +
               '<th scope="col">Categoría</th>' +
               '<th scope="col" class="report-table__numeric">Agendas válidas</th>' +
-              '<th scope="col" class="report-table__numeric">% &lt;48h</th>' +
-              '<th scope="col" class="report-table__numeric">% &lt;5 días</th>' +
-              '<th scope="col" class="report-table__numeric">% ≥7 días</th>' +
+              '<th scope="col" class="report-table__numeric">% 0-2 días</th>' +
+              '<th scope="col" class="report-table__numeric">% 0-3 días</th>' +
+              '<th scope="col" class="report-table__numeric">% 0-6 días</th>' +
+              '<th scope="col" class="report-table__numeric">% 7 o más días</th>' +
               '<th scope="col" class="report-table__numeric">Media</th>' +
               '<th scope="col" class="report-table__numeric">Mediana</th>' +
               '<th scope="col" class="report-table__numeric">Máxima</th>' +
@@ -148,9 +232,10 @@
               '<th scope="col">Categoría</th>' +
               '<th scope="col">Tipo visita</th>' +
               '<th scope="col" class="report-table__numeric">Agendas válidas</th>' +
-              '<th scope="col" class="report-table__numeric">% &lt;48h</th>' +
-              '<th scope="col" class="report-table__numeric">% &lt;5 días</th>' +
-              '<th scope="col" class="report-table__numeric">% ≥7 días</th>' +
+              '<th scope="col" class="report-table__numeric">% 0-2 días</th>' +
+              '<th scope="col" class="report-table__numeric">% 0-3 días</th>' +
+              '<th scope="col" class="report-table__numeric">% 0-6 días</th>' +
+              '<th scope="col" class="report-table__numeric">% 7 o más días</th>' +
               '<th scope="col" class="report-table__numeric">Media</th>' +
               '<th scope="col" class="report-table__numeric">Mediana</th>' +
               '<th scope="col" class="report-table__numeric">Máxima</th>' +
@@ -176,8 +261,8 @@
       ".report-table-card__head{display:flex;justify-content:space-between;gap:16px;align-items:start}" +
       ".report-table-card__head h4{margin:8px 0 0;font-family:var(--font-display);font-size:1.12rem;color:var(--ink-900)}" +
       ".report-table-wrapper{overflow:auto;max-height:430px;border-radius:18px;border:1px solid rgba(27,55,88,.09);background:rgba(255,255,255,.86)}" +
-      ".report-table{width:100%;min-width:820px;border-collapse:separate;border-spacing:0;font-size:.9rem}" +
-      ".report-table--compact{min-width:980px;font-size:.86rem}" +
+      ".report-table{width:100%;min-width:920px;border-collapse:separate;border-spacing:0;font-size:.9rem}" +
+      ".report-table--compact{min-width:1080px;font-size:.86rem}" +
       ".report-table th,.report-table td{padding:12px 14px;border-bottom:1px solid rgba(27,55,88,.08);color:var(--ink-700);vertical-align:top}" +
       ".report-table thead th{position:sticky;top:0;z-index:1;background:linear-gradient(180deg,#f4f9ff,#edf5fb);color:var(--ink-900);font-size:.76rem;font-weight:800;text-transform:uppercase;letter-spacing:.055em;text-align:left;white-space:nowrap}" +
       ".report-table tbody th{font-weight:800;color:var(--ink-900)}" +
@@ -249,6 +334,7 @@
     const latestCutoff = getLatestDateSortValue(filteredRows, "Fecha Corte");
     const zoneMeta = getReportZoneMeta(filteredRows);
 
+    renderDgapDashboard(filteredRows, validRows, metrics);
     updatePrintButton(metrics);
     refs.reportArea.textContent = refs.area && refs.area.value ? refs.area.value : "Todas las áreas";
     refs.reportZones.textContent = zoneMeta.value;
@@ -285,15 +371,193 @@
 
     refs.reportEmptyState.classList.add("is-hidden");
     refs.reportContent.classList.remove("is-hidden");
-    setKpiValue(refs.reportKpiPct48h, formatPercent(metrics.pctUnder48h));
-    setKpiValue(refs.reportKpiPct5d, formatPercent(metrics.pctUnder5d));
-    setKpiValue(refs.reportKpiPct7d, formatPercent(metrics.pct7OrMore));
+    setKpiValue(refs.reportKpiPct0to2, formatPercent(metrics.pct0to2));
+    setKpiValue(refs.reportKpiPct0to3, formatPercent(metrics.pct0to3));
+    setKpiValue(refs.reportKpiPct0to6, formatPercent(metrics.pct0to6));
+    setKpiValue(refs.reportKpiPct7Plus, formatPercent(metrics.pct7Plus));
     setKpiValue(refs.reportKpiTotalValid, formatInteger(metrics.totalValid));
     setKpiValue(refs.reportKpiMean, formatDayMetric(metrics.mean));
     setKpiValue(refs.reportKpiMedian, formatDayMetric(metrics.median));
     setKpiValue(refs.reportKpiMax, formatDayMetric(metrics.max));
     renderReportDetailTables(validRows);
     renderReportCharts(validRows);
+  }
+
+  function renderDgapDashboard(filteredRows, validRows, metrics) {
+    if (!state.hasAttemptedLoad || !metrics) {
+      setSummaryKpisEmpty();
+      setDashboardChartsEmpty(!state.hasAttemptedLoad
+        ? "Cargue un Excel para generar los gráficos."
+        : "No hay agendas válidas con los filtros actuales.");
+      return;
+    }
+
+    setKpiValue(refs.summaryKpiPct0to2, formatPercent(metrics.pct0to2));
+    setKpiValue(refs.summaryKpiPct0to3, formatPercent(metrics.pct0to3));
+    setKpiValue(refs.summaryKpiPct0to6, formatPercent(metrics.pct0to6));
+    setKpiValue(refs.summaryKpiPct7Plus, formatPercent(metrics.pct7Plus));
+    setKpiValue(refs.summaryKpiTotalValid, formatInteger(metrics.totalValid));
+    setKpiValue(refs.summaryKpiMean, formatDayMetric(metrics.mean));
+    setKpiValue(refs.summaryKpiMedian, formatDayMetric(metrics.median));
+    setKpiValue(refs.summaryKpiMax, formatDayMetric(metrics.max));
+
+    renderDgapCharts(validRows);
+  }
+
+  function setSummaryKpisEmpty() {
+    [
+      refs.summaryKpiPct0to2,
+      refs.summaryKpiPct0to3,
+      refs.summaryKpiPct0to6,
+      refs.summaryKpiPct7Plus,
+      refs.summaryKpiTotalValid,
+      refs.summaryKpiMean,
+      refs.summaryKpiMedian,
+      refs.summaryKpiMax
+    ].forEach(function (element) {
+      setKpiValue(element, "--");
+    });
+  }
+
+  function renderDgapCharts(validRows) {
+    if (!window.DemorasCharts) {
+      return;
+    }
+
+    const exclusiveBands = buildExclusiveDelayBands(validRows);
+    const bandItems = exclusiveBands.map(function (band) {
+      return {
+        label: band.label,
+        value: band.count,
+        color: band.color,
+        share: band.share
+      };
+    });
+
+    window.DemorasCharts.renderVerticalBarChart(refs.summaryBandsChart, {
+      items: bandItems,
+      valueFormatter: formatInteger,
+      annotationFormatter: function (item) { return formatPercent(item.share); },
+      titleFormatter: function (item) { return formatInteger(item.value) + " agendas"; }
+    });
+
+    window.DemorasCharts.renderDonutChart(refs.summaryDonutChart, {
+      items: bandItems,
+      valueFormatter: formatInteger,
+      annotationFormatter: function (item) { return formatPercent(item.share); },
+      titleFormatter: function (item) { return item.label + ": " + formatInteger(item.value) + " agendas"; },
+      centerLabel: formatInteger(validRows.length),
+      centerSubLabel: "agendas válidas"
+    });
+
+    renderRankingChart(refs.centersChart, validRows, "Centro", PALETTE.blue, 10, "No hay centros con agendas válidas.");
+    renderRankingChart(refs.zonesChart, validRows, "Zona", PALETTE.teal, 10, "No hay zonas con agendas válidas.");
+    renderRankingChart(refs.categoryChart, validRows, "Categoría", PALETTE.green, 8, "No hay categorías con agendas válidas.");
+    renderRankingChart(refs.visitTypeChart, validRows, "Tipo visita", PALETTE.amber, 8, "No hay tipos de visita con agendas válidas.");
+    renderHistogramChart(validRows);
+    renderCenterBandsChart(validRows);
+  }
+
+  function renderRankingChart(container, rows, column, color, limit, emptyMessage) {
+    if (!window.DemorasCharts || !container) {
+      return;
+    }
+
+    const items = aggregateByField(rows, column)
+      .sort(function (left, right) {
+        return right.mean - left.mean || right.count - left.count || left.label.localeCompare(right.label, "es", { sensitivity: "base", numeric: true });
+      })
+      .slice(0, limit)
+      .map(function (item) {
+        return {
+          label: item.label,
+          value: item.mean,
+          color: color,
+          note: "n=" + formatInteger(item.count)
+        };
+      });
+
+    window.DemorasCharts.renderHorizontalBarChart(container, {
+      items: items,
+      valueFormatter: formatDayMetric,
+      emptyMessage: emptyMessage
+    });
+  }
+
+  function renderHistogramChart(rows) {
+    if (!window.DemorasCharts || !refs.histogramChart) {
+      return;
+    }
+
+    const histogramBands = [
+      { label: "0-2 días", min: 0, max: 2, count: 0, color: PALETTE.green },
+      { label: "3 días", min: 3, max: 3, count: 0, color: PALETTE.teal },
+      { label: "4-6 días", min: 4, max: 6, count: 0, color: PALETTE.amber },
+      { label: "7-9 días", min: 7, max: 9, count: 0, color: PALETTE.red },
+      { label: "10-14 días", min: 10, max: 14, count: 0, color: "#b45568" },
+      { label: "15+ días", min: 15, max: Infinity, count: 0, color: "#7d4a66" }
+    ];
+
+    rows.forEach(function (row) {
+      const band = histogramBands.find(function (item) {
+        return row.__acc >= item.min && row.__acc <= item.max;
+      });
+      if (band) {
+        band.count += 1;
+      }
+    });
+
+    window.DemorasCharts.renderVerticalBarChart(refs.histogramChart, {
+      items: histogramBands.map(function (band) {
+        return {
+          label: band.label,
+          value: band.count,
+          color: band.color
+        };
+      }),
+      valueFormatter: formatInteger,
+      emptyMessage: "No hay agendas válidas para construir el histograma."
+    });
+  }
+
+  function renderCenterBandsChart(rows) {
+    if (!window.DemorasCharts || !refs.centerBandsChart) {
+      return;
+    }
+
+    const centers = aggregateCenterBands(rows).slice(0, 8);
+    window.DemorasCharts.renderStackedBarChart(refs.centerBandsChart, {
+      items: centers,
+      segments: [
+        { key: "band0to2", label: "0-2 días", color: PALETTE.green },
+        { key: "band3", label: "3 días", color: PALETTE.teal },
+        { key: "band4to6", label: "4-6 días", color: PALETTE.amber },
+        { key: "band7Plus", label: "7 o más días", color: PALETTE.red }
+      ],
+      valueFormatter: formatInteger,
+      emptyMessage: "No hay centros con agendas válidas para representar tramos."
+    });
+  }
+
+  function setDashboardChartsEmpty(message) {
+    if (!window.DemorasCharts) {
+      return;
+    }
+
+    [
+      refs.summaryBandsChart,
+      refs.summaryDonutChart,
+      refs.centersChart,
+      refs.zonesChart,
+      refs.categoryChart,
+      refs.visitTypeChart,
+      refs.histogramChart,
+      refs.centerBandsChart
+    ].forEach(function (container) {
+      if (container) {
+        window.DemorasCharts.setEmpty(container, message);
+      }
+    });
   }
 
   function renderReportDetailTables(validRows) {
@@ -362,9 +626,10 @@
       "<tr>" +
       '<th scope="row">' + escapeHtml(row.category) + "</th>" +
       renderNumericCell(formatInteger(row.totalValid)) +
-      renderNumericCell(formatPercent(row.pctUnder48h)) +
-      renderNumericCell(formatPercent(row.pctUnder5d)) +
-      renderNumericCell(formatPercent(row.pct7OrMore), row.pct7OrMore >= 20 ? "report-table__signal" : "") +
+      renderNumericCell(formatPercent(row.pct0to2)) +
+      renderNumericCell(formatPercent(row.pct0to3)) +
+      renderNumericCell(formatPercent(row.pct0to6)) +
+      renderNumericCell(formatPercent(row.pct7Plus), row.pct7Plus >= 20 ? "report-table__signal" : "") +
       renderNumericCell(formatReportDelay(row.mean)) +
       renderNumericCell(formatReportDelay(row.median)) +
       renderNumericCell(formatReportDelay(row.max)) +
@@ -378,9 +643,10 @@
       '<th scope="row">' + escapeHtml(row.category) + "</th>" +
       "<td>" + escapeHtml(row.visitType) + "</td>" +
       renderNumericCell(formatInteger(row.totalValid)) +
-      renderNumericCell(formatPercent(row.pctUnder48h)) +
-      renderNumericCell(formatPercent(row.pctUnder5d)) +
-      renderNumericCell(formatPercent(row.pct7OrMore), row.pct7OrMore >= 20 ? "report-table__signal" : "") +
+      renderNumericCell(formatPercent(row.pct0to2)) +
+      renderNumericCell(formatPercent(row.pct0to3)) +
+      renderNumericCell(formatPercent(row.pct0to6)) +
+      renderNumericCell(formatPercent(row.pct7Plus), row.pct7Plus >= 20 ? "report-table__signal" : "") +
       renderNumericCell(formatReportDelay(row.mean)) +
       renderNumericCell(formatReportDelay(row.median)) +
       renderNumericCell(formatReportDelay(row.max)) +
@@ -441,9 +707,10 @@
   }
 
   function setReportKpisEmpty() {
-    setKpiValue(refs.reportKpiPct48h, "--");
-    setKpiValue(refs.reportKpiPct5d, "--");
-    setKpiValue(refs.reportKpiPct7d, "--");
+    setKpiValue(refs.reportKpiPct0to2, "--");
+    setKpiValue(refs.reportKpiPct0to3, "--");
+    setKpiValue(refs.reportKpiPct0to6, "--");
+    setKpiValue(refs.reportKpiPct7Plus, "--");
     setKpiValue(refs.reportKpiTotalValid, "--");
     setKpiValue(refs.reportKpiMean, "--");
     setKpiValue(refs.reportKpiMedian, "--");
@@ -476,12 +743,14 @@
         ". " +
         cutoffText,
       "En términos de accesibilidad, el " +
-        formatPercent(metrics.pctUnder48h) +
-        " de las agendas presenta una demora inferior a 48 horas y el " +
-        formatPercent(metrics.pctUnder5d) +
-        " se sitúa por debajo de 5 días. Por su parte, el " +
-        formatPercent(metrics.pct7OrMore) +
-        " alcanza o supera los 7 días, con una demora media de " +
+        formatPercent(metrics.pct0to2) +
+        " se sitúa entre 0 y 2 días, el " +
+        formatPercent(metrics.pct0to3) +
+        " entre 0 y 3 días y el " +
+        formatPercent(metrics.pct0to6) +
+        " entre 0 y 6 días. Las agendas con demora de 7 o más días representan el " +
+        formatPercent(metrics.pct7Plus) +
+        " del total analizado, con una demora media de " +
         formatDaysText(metrics.mean) +
         ", una mediana de " +
         formatDaysText(metrics.median) +
@@ -497,11 +766,11 @@
   }
 
   function buildExecutiveAssessment(metrics) {
-    if (metrics.pct7OrMore >= 35 || metrics.mean >= 7) {
+    if (metrics.pct7Plus >= 35 || metrics.mean >= 7) {
       return "En conjunto, la distribución observada refleja una presión relevante en la accesibilidad, con un peso significativo de agendas en demora prolongada.";
     }
 
-    if (metrics.pctUnder48h >= 60 && metrics.pct7OrMore <= 15) {
+    if (metrics.pct0to2 >= 60 && metrics.pct7Plus <= 15) {
       return "En conjunto, la situación muestra un comportamiento favorable, con predominio de agendas en tramos de demora corta y una presencia contenida de demoras prolongadas.";
     }
 
@@ -523,7 +792,7 @@
           " presenta el comportamiento menos favorable dentro del subconjunto filtrado, con una demora media de " +
           formatDaysText(categoryRows[0].mean) +
           " y un " +
-          formatPercent(categoryRows[0].pct7OrMore) +
+          formatPercent(categoryRows[0].pct7Plus) +
           " de agendas con 7 o más días."
       );
     }
@@ -605,7 +874,7 @@
 
   function compareByDelayPressure(left, right) {
     return (
-      right.pct7OrMore - left.pct7OrMore ||
+      right.pct7Plus - left.pct7Plus ||
       right.mean - left.mean ||
       right.totalValid - left.totalValid ||
       String(left.category || "").localeCompare(String(right.category || ""), "es", {
@@ -805,7 +1074,7 @@
 
   function parseNumericValue(value) {
     if (typeof value === "number" && Number.isFinite(value)) {
-      return value;
+      return value >= 0 ? value : NaN;
     }
 
     const textValue = normalizeText(value);
@@ -815,7 +1084,7 @@
 
     const normalized = textValue.replace(/\s+/g, "").replace(",", ".");
     const parsed = Number(normalized);
-    return Number.isFinite(parsed) ? parsed : NaN;
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : NaN;
   }
 
   function getFilteredRows() {
@@ -840,15 +1109,17 @@
     });
 
     const totalValid = values.length;
-    const countUnder48h = values.filter(function (value) { return value < 2; }).length;
-    const countUnder5d = values.filter(function (value) { return value < 5; }).length;
-    const count7OrMore = values.filter(function (value) { return value >= 7; }).length;
+    const count0to2 = values.filter(function (value) { return value >= 0 && value <= 2; }).length;
+    const count0to3 = values.filter(function (value) { return value >= 0 && value <= 3; }).length;
+    const count0to6 = values.filter(function (value) { return value >= 0 && value <= 6; }).length;
+    const count7Plus = values.filter(function (value) { return value >= 7; }).length;
 
     return {
       totalValid: totalValid,
-      pctUnder48h: (countUnder48h / totalValid) * 100,
-      pctUnder5d: (countUnder5d / totalValid) * 100,
-      pct7OrMore: (count7OrMore / totalValid) * 100,
+      pct0to2: (count0to2 / totalValid) * 100,
+      pct0to3: (count0to3 / totalValid) * 100,
+      pct0to6: (count0to6 / totalValid) * 100,
+      pct7Plus: (count7Plus / totalValid) * 100,
       mean: average(values),
       median: median(values),
       max: Math.max.apply(null, values)
@@ -856,26 +1127,27 @@
   }
 
   function buildExecutiveDelayBands(rows) {
+    return buildExclusiveDelayBands(rows);
+  }
+
+  function buildExclusiveDelayBands(rows) {
     const total = rows.length || 1;
     const bands = [
-      { label: "<48h", count: 0, color: PALETTE.green },
-      { label: "2-4 días", count: 0, color: PALETTE.teal },
-      { label: "5-6 días", count: 0, color: PALETTE.amber },
-      { label: "7-13 días", count: 0, color: PALETTE.red },
-      { label: "14+ días", count: 0, color: "#9f4c69" }
+      { label: "0-2 días", count: 0, color: PALETTE.green },
+      { label: "3 días", count: 0, color: PALETTE.teal },
+      { label: "4-6 días", count: 0, color: PALETTE.amber },
+      { label: "7 o más días", count: 0, color: PALETTE.red }
     ];
 
     rows.forEach(function (row) {
-      if (row.__acc < 2) {
+      if (row.__acc <= 2) {
         bands[0].count += 1;
-      } else if (row.__acc < 5) {
+      } else if (row.__acc === 3) {
         bands[1].count += 1;
-      } else if (row.__acc < 7) {
+      } else if (row.__acc <= 6) {
         bands[2].count += 1;
-      } else if (row.__acc < 14) {
-        bands[3].count += 1;
       } else {
-        bands[4].count += 1;
+        bands[3].count += 1;
       }
     });
 
@@ -906,6 +1178,43 @@
         count: group.values.length,
         mean: average(group.values)
       };
+    });
+  }
+
+  function aggregateCenterBands(rows) {
+    const grouped = new Map();
+
+    rows.forEach(function (row) {
+      const label = normalizeText(row["Centro"]) || "Sin dato";
+      if (!grouped.has(label)) {
+        grouped.set(label, {
+          label: label,
+          total: 0,
+          band0to2: 0,
+          band3: 0,
+          band4to6: 0,
+          band7Plus: 0
+        });
+      }
+
+      const group = grouped.get(label);
+      group.total += 1;
+      if (row.__acc <= 2) {
+        group.band0to2 += 1;
+      } else if (row.__acc === 3) {
+        group.band3 += 1;
+      } else if (row.__acc <= 6) {
+        group.band4to6 += 1;
+      } else {
+        group.band7Plus += 1;
+      }
+    });
+
+    return Array.from(grouped.values()).sort(function (left, right) {
+      return right.band7Plus - left.band7Plus || right.total - left.total || left.label.localeCompare(right.label, "es", {
+        sensitivity: "base",
+        numeric: true
+      });
     });
   }
 
