@@ -65,6 +65,7 @@
       column: "Accesibilidad",
       direction: "desc"
     },
+    selectedMapZone: "",
     currentPage: 1,
     pageSize: 20
   };
@@ -118,6 +119,8 @@
     visitTypeChart: document.getElementById("visitTypeChart"),
     histogramChart: document.getElementById("histogramChart"),
     centerBandsChart: document.getElementById("centerBandsChart"),
+    zoneBubbleMap: document.getElementById("zoneBubbleMap"),
+    zoneBubbleDetail: document.getElementById("zoneBubbleDetail"),
     printReportButton: document.getElementById("printReportButton"),
     reportScope: document.getElementById("reportScope"),
     reportArea: document.getElementById("reportArea"),
@@ -135,6 +138,12 @@
     reportKpiMean: document.getElementById("reportKpiMean"),
     reportKpiMedian: document.getElementById("reportKpiMedian"),
     reportKpiMax: document.getElementById("reportKpiMax"),
+    reportCategoryEmptyState: document.getElementById("reportCategoryEmptyState"),
+    reportCategoryTableWrapper: document.getElementById("reportCategoryTableWrapper"),
+    reportCategoryTableBody: document.getElementById("reportCategoryTableBody"),
+    reportCategoryVisitEmptyState: document.getElementById("reportCategoryVisitEmptyState"),
+    reportCategoryVisitTableWrapper: document.getElementById("reportCategoryVisitTableWrapper"),
+    reportCategoryVisitTableBody: document.getElementById("reportCategoryVisitTableBody"),
     reportBandsChart: document.getElementById("reportBandsChart"),
     reportCentersChart: document.getElementById("reportCentersChart")
   };
@@ -162,6 +171,10 @@
     refs.prevPageButton.addEventListener("click", () => changePage(-1));
     refs.nextPageButton.addEventListener("click", () => changePage(1));
     refs.dataTableHead.addEventListener("click", handleSortClick);
+    if (refs.zoneBubbleMap) {
+      refs.zoneBubbleMap.addEventListener("click", handleZoneBubbleClick);
+      refs.zoneBubbleMap.addEventListener("keydown", handleZoneBubbleKeydown);
+    }
 
     refs.tabButtons.forEach((button) => {
       button.addEventListener("click", () => setActiveTab(button.dataset.tabTarget || "upload"));
@@ -171,6 +184,7 @@
       refs[filter.key].addEventListener("change", () => {
         state.filters[filter.key] = refs[filter.key].value;
         state.currentPage = 1;
+        state.selectedMapZone = "";
         renderAll();
       });
     });
@@ -252,6 +266,7 @@
       state.rows = normalizeRows(workbookData.rows);
       state.currentPage = 1;
       state.tableSearch = "";
+      state.selectedMapZone = "";
       state.tableSort = {
         column: "Accesibilidad",
         direction: "desc"
@@ -696,6 +711,7 @@
       refs.reportEmptyState.textContent = "Cargue un archivo Excel para comenzar la elaboración del informe.";
       refs.reportContent.classList.add("is-hidden");
       setReportKpisEmpty();
+      setReportDetailTablesEmpty("Cargue un Excel para generar el detalle analítico.");
       window.DemorasCharts.setEmpty(refs.reportBandsChart, "Cargue un Excel para generar el gráfico del informe.");
       window.DemorasCharts.setEmpty(refs.reportCentersChart, "Cargue un Excel para generar el gráfico del informe.");
       return;
@@ -710,6 +726,7 @@
         : "No hay información disponible para generar el informe con los filtros actuales.";
       refs.reportContent.classList.add("is-hidden");
       setReportKpisEmpty();
+      setReportDetailTablesEmpty("No hay agendas válidas con los filtros actuales.");
       window.DemorasCharts.setEmpty(refs.reportBandsChart, "No hay agendas válidas con los filtros actuales.");
       window.DemorasCharts.setEmpty(refs.reportCentersChart, "No hay agendas válidas con los filtros actuales.");
       return;
@@ -726,6 +743,7 @@
     setKpiValue(refs.reportKpiMedian, formatDayMetric(metrics.median));
     setKpiValue(refs.reportKpiMax, formatDayMetric(metrics.max));
 
+    renderReportDetailTables(validRows);
     renderReportCharts(validRows);
   }
 
@@ -771,6 +789,81 @@
     setKpiValue(refs.reportKpiMax, "--");
   }
 
+  function renderReportDetailTables(validRows) {
+    const categoryRows = buildCategorySummaries(validRows);
+    const categoryVisitRows = buildCategoryVisitSummaries(validRows);
+
+    renderReportTable(
+      refs.reportCategoryEmptyState,
+      refs.reportCategoryTableWrapper,
+      refs.reportCategoryTableBody,
+      categoryRows,
+      (item) =>
+        "<tr>" +
+        "<th scope=\"row\">" + escapeHtml(item.category) + "</th>" +
+        renderMetricCells(item) +
+        "</tr>"
+    );
+
+    renderReportTable(
+      refs.reportCategoryVisitEmptyState,
+      refs.reportCategoryVisitTableWrapper,
+      refs.reportCategoryVisitTableBody,
+      categoryVisitRows,
+      (item) =>
+        "<tr>" +
+        "<th scope=\"row\">" + escapeHtml(item.category) + "</th>" +
+        "<td>" + escapeHtml(item.visitType) + "</td>" +
+        renderMetricCells(item) +
+        "</tr>"
+    );
+  }
+
+  function renderReportTable(emptyElement, wrapperElement, bodyElement, rows, rowRenderer) {
+    if (!emptyElement || !wrapperElement || !bodyElement) {
+      return;
+    }
+
+    if (!rows.length) {
+      emptyElement.classList.remove("is-hidden");
+      wrapperElement.classList.add("is-hidden");
+      bodyElement.innerHTML = "";
+      return;
+    }
+
+    emptyElement.classList.add("is-hidden");
+    wrapperElement.classList.remove("is-hidden");
+    bodyElement.innerHTML = rows.map(rowRenderer).join("");
+  }
+
+  function renderMetricCells(item) {
+    return (
+      '<td class="report-table__numeric">' + formatInteger(item.totalValid) + "</td>" +
+      '<td class="report-table__numeric">' + formatPercent(item.pct0to2) + "</td>" +
+      '<td class="report-table__numeric">' + formatPercent(item.pct0to3) + "</td>" +
+      '<td class="report-table__numeric">' + formatPercent(item.pct0to6) + "</td>" +
+      '<td class="report-table__numeric report-table__signal">' + formatPercent(item.pct7Plus) + "</td>" +
+      '<td class="report-table__numeric">' + formatDayMetric(item.mean) + "</td>" +
+      '<td class="report-table__numeric">' + formatDayMetric(item.median) + "</td>" +
+      '<td class="report-table__numeric">' + formatDayMetric(item.max) + "</td>"
+    );
+  }
+
+  function setReportDetailTablesEmpty(message) {
+    [
+      [refs.reportCategoryEmptyState, refs.reportCategoryTableWrapper, refs.reportCategoryTableBody],
+      [refs.reportCategoryVisitEmptyState, refs.reportCategoryVisitTableWrapper, refs.reportCategoryVisitTableBody]
+    ].forEach(([emptyElement, wrapperElement, bodyElement]) => {
+      if (!emptyElement || !wrapperElement || !bodyElement) {
+        return;
+      }
+      emptyElement.textContent = message;
+      emptyElement.classList.remove("is-hidden");
+      wrapperElement.classList.add("is-hidden");
+      bodyElement.innerHTML = "";
+    });
+  }
+
   function buildReportSummaryMarkup(filteredRows, metrics, latestCutoff) {
     if (!filteredRows.length) {
       return "<p>No hay información disponible para generar un informe con la selección actual.</p>";
@@ -786,7 +879,9 @@
     const filteredBaseText = filteredRows.length !== metrics.totalValid
       ? " sobre un total de " + formatInteger(filteredRows.length) + " registros filtrados"
       : "";
-    const assessment = buildExecutiveAssessment(metrics);
+    const assessment = [buildExecutiveAssessment(metrics), buildReportDetailAssessment(filteredRows)]
+      .filter(Boolean)
+      .join(" ");
 
     const paragraphs = [
       "El análisis realizado sobre las agendas filtradas incorpora " +
@@ -826,6 +921,41 @@
     }
 
     return "En conjunto, la situación presenta un comportamiento intermedio, con margen de mejora en la reducción de las agendas que concentran mayores demoras.";
+  }
+
+  function buildReportDetailAssessment(filteredRows) {
+    const validRows = filteredRows.filter((row) => row.__hasValidAcc);
+    const categoryRows = buildCategorySummaries(validRows);
+    const categoryVisitRows = buildCategoryVisitSummaries(validRows);
+    const sentences = [];
+
+    if (categoryRows.length > 1 && categoryRows[0].totalValid >= 3) {
+      sentences.push(
+        "Por categoría, " +
+          categoryRows[0].category +
+          " concentra el comportamiento menos favorable del subconjunto, con una demora media de " +
+          formatDaysText(categoryRows[0].mean) +
+          " y un " +
+          formatPercent(categoryRows[0].pct7Plus) +
+          " de agendas con 7 o más días."
+      );
+    }
+
+    if (categoryVisitRows.length > 1 && categoryVisitRows[0].totalValid >= 3) {
+      sentences.push(
+        "En el cruce categoría y tipo de visita destaca " +
+          categoryVisitRows[0].category +
+          " - " +
+          categoryVisitRows[0].visitType +
+          ", con " +
+          formatInteger(categoryVisitRows[0].totalValid) +
+          " agendas válidas y un " +
+          formatPercent(categoryVisitRows[0].pct7Plus) +
+          " en 7 o más días."
+      );
+    }
+
+    return sentences.join(" ");
   }
 
   function getLatestDateSortValue(rows, column) {
@@ -952,6 +1082,8 @@
         ]
       }));
 
+    renderZoneBubbleMap(validRows);
+
     window.DemorasCharts.renderHorizontalBarChart(refs.centersChart, {
       items: centers,
       valueFormatter: formatDayMetric
@@ -996,6 +1128,242 @@
     window.DemorasCharts.setEmpty(refs.visitTypeChart, message);
     window.DemorasCharts.setEmpty(refs.histogramChart, message);
     window.DemorasCharts.setEmpty(refs.centerBandsChart, message);
+    setZoneBubbleMapEmpty(message);
+  }
+
+  function renderZoneBubbleMap(validRows) {
+    if (!refs.zoneBubbleMap || !refs.zoneBubbleDetail) {
+      return;
+    }
+
+    const zones = aggregateByField(validRows, "Zona")
+      .filter((item) => item.count > 0)
+      .sort((a, b) =>
+        normalizeText(a.area).localeCompare(normalizeText(b.area), "es", { sensitivity: "base", numeric: true }) ||
+        b.mean - a.mean ||
+        b.count - a.count ||
+        a.label.localeCompare(b.label, "es", { sensitivity: "base", numeric: true })
+      );
+
+    if (!zones.length) {
+      setZoneBubbleMapEmpty("No hay datos suficientes para generar el mapa con los filtros actuales.");
+      return;
+    }
+
+    if (!state.selectedMapZone || !zones.some((zone) => zone.label === state.selectedMapZone)) {
+      state.selectedMapZone = zones[0].label;
+    }
+
+    const maxCount = Math.max(...zones.map((zone) => zone.count));
+    refs.zoneBubbleMap.innerHTML = zones
+      .map((zone) => {
+        const size = getBubbleSize(zone.count, maxCount);
+        const level = getDelayLevel(zone.mean);
+        const selected = state.selectedMapZone === zone.label ? " is-selected" : "";
+        const title = buildZoneTooltip(zone);
+        return (
+          '<button class="zone-bubble zone-bubble--' +
+          level.key +
+          selected +
+          '" type="button" data-zone="' +
+          escapeHtml(zone.label) +
+          '" style="--bubble-size:' +
+          size +
+          'px" title="' +
+          escapeHtml(title) +
+          '">' +
+          '<span class="zone-bubble__name">' +
+          escapeHtml(zone.label) +
+          "</span>" +
+          '<span class="zone-bubble__value">' +
+          escapeHtml(formatDayMetric(zone.mean)) +
+          "</span>" +
+          '<span class="zone-bubble__count">' +
+          escapeHtml(formatInteger(zone.count)) +
+          " agendas</span>" +
+          "</button>"
+        );
+      })
+      .join("");
+
+    const selectedZone = zones.find((zone) => zone.label === state.selectedMapZone) || zones[0];
+    renderZoneBubbleDetail(selectedZone);
+  }
+
+  function setZoneBubbleMapEmpty(message) {
+    if (refs.zoneBubbleMap) {
+      refs.zoneBubbleMap.innerHTML = '<div class="bubble-map-empty">' + escapeHtml(message) + "</div>";
+    }
+    if (refs.zoneBubbleDetail) {
+      refs.zoneBubbleDetail.textContent = message;
+    }
+    state.selectedMapZone = "";
+  }
+
+  function handleZoneBubbleClick(event) {
+    const bubble = event.target.closest("[data-zone]");
+    if (!bubble) {
+      return;
+    }
+    state.selectedMapZone = bubble.getAttribute("data-zone") || "";
+    renderCharts();
+  }
+
+  function handleZoneBubbleKeydown(event) {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+    const bubble = event.target.closest("[data-zone]");
+    if (!bubble) {
+      return;
+    }
+    event.preventDefault();
+    state.selectedMapZone = bubble.getAttribute("data-zone") || "";
+    renderCharts();
+  }
+
+  function renderZoneBubbleDetail(zone) {
+    if (!refs.zoneBubbleDetail || !zone) {
+      return;
+    }
+
+    const level = getDelayLevel(zone.mean);
+    refs.zoneBubbleDetail.innerHTML =
+      '<div class="bubble-map-detail__kicker">Zona seleccionada</div>' +
+      "<h4>" +
+      escapeHtml(zone.label) +
+      "</h4>" +
+      '<span class="bubble-map-detail__badge bubble-map-detail__badge--' +
+      level.key +
+      '">' +
+      escapeHtml(level.label) +
+      "</span>" +
+      '<dl class="bubble-map-detail__metrics">' +
+      "<div><dt>Agendas válidas</dt><dd>" +
+      formatInteger(zone.count) +
+      "</dd></div>" +
+      "<div><dt>% 0-2 días</dt><dd>" +
+      formatPercent(zone.pct0to2) +
+      "</dd></div>" +
+      "<div><dt>% 0-3 días</dt><dd>" +
+      formatPercent(zone.pct0to3) +
+      "</dd></div>" +
+      "<div><dt>% 0-6 días</dt><dd>" +
+      formatPercent(zone.pct0to6) +
+      "</dd></div>" +
+      "<div><dt>% 7 o más días</dt><dd>" +
+      formatPercent(zone.pct7Plus) +
+      "</dd></div>" +
+      "<div><dt>Demora media</dt><dd>" +
+      formatDayMetric(zone.mean) +
+      "</dd></div>" +
+      "<div><dt>Demora mediana</dt><dd>" +
+      formatDayMetric(zone.median) +
+      "</dd></div>" +
+      "<div><dt>Demora máxima</dt><dd>" +
+      formatDayMetric(zone.max) +
+      "</dd></div>" +
+      "</dl>";
+  }
+
+  function buildZoneTooltip(zone) {
+    return [
+      zone.label,
+      "Agendas válidas: " + formatInteger(zone.count),
+      "% 0-2 días: " + formatPercent(zone.pct0to2),
+      "% 0-3 días: " + formatPercent(zone.pct0to3),
+      "% 0-6 días: " + formatPercent(zone.pct0to6),
+      "% 7 o más días: " + formatPercent(zone.pct7Plus),
+      "Demora media: " + formatDayMetric(zone.mean),
+      "Mediana: " + formatDayMetric(zone.median),
+      "Máxima: " + formatDayMetric(zone.max)
+    ].join("\n");
+  }
+
+  function getBubbleSize(count, maxCount) {
+    const ratio = maxCount > 0 ? count / maxCount : 0;
+    return Math.round(82 + Math.sqrt(ratio) * 86);
+  }
+
+  function getDelayLevel(mean) {
+    if (mean <= 2) {
+      return { key: "good", label: "Demora media ≤ 2 días" };
+    }
+    if (mean <= 3) {
+      return { key: "warn", label: "Demora media > 2 y ≤ 3 días" };
+    }
+    if (mean <= 6) {
+      return { key: "orange", label: "Demora media > 3 y ≤ 6 días" };
+    }
+    return { key: "bad", label: "Demora media ≥ 7 días" };
+  }
+
+  function buildCategorySummaries(validRows) {
+    return summarizeGroupedRows(validRows, [
+      {
+        key: "category",
+        column: "CategorÃ­a",
+        fallback: "Sin categoría"
+      }
+    ]).sort(compareByDelayPressure);
+  }
+
+  function buildCategoryVisitSummaries(validRows) {
+    return summarizeGroupedRows(validRows, [
+      {
+        key: "category",
+        column: "CategorÃ­a",
+        fallback: "Sin categoría"
+      },
+      {
+        key: "visitType",
+        column: "Tipo visita",
+        fallback: "Sin tipo de visita"
+      }
+    ]).sort((left, right) => {
+      const pressureOrder = compareByDelayPressure(left, right);
+      return pressureOrder;
+    });
+  }
+
+  function summarizeGroupedRows(validRows, descriptors) {
+    const grouped = new Map();
+
+    validRows.forEach((row) => {
+      const labels = descriptors.map((descriptor) => normalizeText(row[descriptor.column]) || descriptor.fallback);
+      const groupKey = labels.join("\u001f");
+
+      if (!grouped.has(groupKey)) {
+        const group = { rows: [] };
+        descriptors.forEach((descriptor, index) => {
+          group[descriptor.key] = labels[index];
+        });
+        grouped.set(groupKey, group);
+      }
+
+      grouped.get(groupKey).rows.push(row);
+    });
+
+    return Array.from(grouped.values()).map((group) => {
+      const metrics = calculateExecutiveMetrics(group.rows);
+      return Object.assign({}, group, metrics);
+    });
+  }
+
+  function compareByDelayPressure(left, right) {
+    return (
+      right.pct7Plus - left.pct7Plus ||
+      right.mean - left.mean ||
+      right.totalValid - left.totalValid ||
+      String(left.category || left.label || "").localeCompare(String(right.category || right.label || ""), "es", {
+        sensitivity: "base",
+        numeric: true
+      }) ||
+      String(left.visitType || "").localeCompare(String(right.visitType || ""), "es", {
+        sensitivity: "base",
+        numeric: true
+      })
+    );
   }
 
   function aggregateByField(rows, column) {
@@ -1006,19 +1374,29 @@
       if (!grouped.has(label)) {
         grouped.set(label, {
           label,
-          values: []
+          values: [],
+          rows: []
         });
       }
       grouped.get(label).values.push(row.__acc);
+      grouped.get(label).rows.push(row);
     });
 
-    return Array.from(grouped.values()).map((group) => ({
-      label: group.label,
-      count: group.values.length,
-      mean: average(group.values),
-      median: median(group.values),
-      max: Math.max(...group.values)
-    }));
+    return Array.from(grouped.values()).map((group) => {
+      const metrics = calculateExecutiveMetrics(group.rows);
+      return {
+        label: group.label,
+        count: metrics.totalValid,
+        totalValid: metrics.totalValid,
+        pct0to2: metrics.pct0to2,
+        pct0to3: metrics.pct0to3,
+        pct0to6: metrics.pct0to6,
+        pct7Plus: metrics.pct7Plus,
+        mean: metrics.mean,
+        median: metrics.median,
+        max: metrics.max
+      };
+    });
   }
 
   function aggregateCenterBands(rows) {
@@ -1247,6 +1625,7 @@
     resetFilterValues();
     state.tableSearch = "";
     state.currentPage = 1;
+    state.selectedMapZone = "";
     refs.tableSearchInput.value = "";
     renderAll();
   }
@@ -1357,6 +1736,7 @@
     state.rows = [];
     state.tableSearch = "";
     state.currentPage = 1;
+    state.selectedMapZone = "";
     state.tableSort = {
       column: "Accesibilidad",
       direction: "desc"

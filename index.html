@@ -349,6 +349,28 @@
 
       <section class="tab-panel" id="tab-charts" data-tab-panel="charts">
         <div class="charts-grid charts-grid--detail">
+          <article class="glass-panel chart-card chart-card--wide">
+            <div class="chart-card__head">
+              <div>
+                <p class="section-kicker">Mapa analítico</p>
+                <h3>Mapa interactivo por Zona Básica de Salud</h3>
+                <p class="section-description">Representación visual analítica no geográfica. El tamaño refleja volumen de agendas válidas y el color refleja demora media.</p>
+              </div>
+            </div>
+            <div class="bubble-map-legend" aria-label="Leyenda de demora media">
+              <span><i class="bubble-map-legend__dot bubble-map-legend__dot--good"></i>≤ 2 días</span>
+              <span><i class="bubble-map-legend__dot bubble-map-legend__dot--warn"></i>&gt; 2 y ≤ 3 días</span>
+              <span><i class="bubble-map-legend__dot bubble-map-legend__dot--orange"></i>&gt; 3 y ≤ 6 días</span>
+              <span><i class="bubble-map-legend__dot bubble-map-legend__dot--bad"></i>≥ 7 días</span>
+            </div>
+            <div class="bubble-map-layout">
+              <div class="bubble-map" id="zoneBubbleMap" aria-live="polite"></div>
+              <aside class="bubble-map-detail" id="zoneBubbleDetail">
+                Seleccione una zona para ver el detalle.
+              </aside>
+            </div>
+          </article>
+
           <article class="glass-panel chart-card">
             <div class="chart-card__head">
               <div>
@@ -534,6 +556,72 @@
                 </div>
               </section>
 
+              <section class="report-detail-tables" aria-labelledby="reportDetailTablesTitle">
+                <div class="report-section-head">
+                  <div>
+                    <p class="section-kicker">Análisis desagregado</p>
+                    <h3 id="reportDetailTablesTitle">Detalle de accesibilidad</h3>
+                  </div>
+                </div>
+
+                <article class="report-table-card" aria-labelledby="reportCategoryTitle">
+                  <div class="report-table-card__head">
+                    <div>
+                      <p class="section-kicker">Categoría profesional</p>
+                      <h4 id="reportCategoryTitle">Detalle por categoría</h4>
+                    </div>
+                  </div>
+                  <div class="report-table-empty is-hidden" id="reportCategoryEmptyState">No hay agendas válidas para mostrar el detalle por categoría.</div>
+                  <div class="report-table-wrapper" id="reportCategoryTableWrapper">
+                    <table class="report-table" aria-describedby="reportCategoryTitle">
+                      <thead>
+                        <tr>
+                          <th scope="col">Categoría</th>
+                          <th scope="col" class="report-table__numeric">Agendas válidas</th>
+                          <th scope="col" class="report-table__numeric">% 0-2 días</th>
+                          <th scope="col" class="report-table__numeric">% 0-3 días</th>
+                          <th scope="col" class="report-table__numeric">% 0-6 días</th>
+                          <th scope="col" class="report-table__numeric">% 7 o más días</th>
+                          <th scope="col" class="report-table__numeric">Media</th>
+                          <th scope="col" class="report-table__numeric">Mediana</th>
+                          <th scope="col" class="report-table__numeric">Máxima</th>
+                        </tr>
+                      </thead>
+                      <tbody id="reportCategoryTableBody"></tbody>
+                    </table>
+                  </div>
+                </article>
+
+                <article class="report-table-card" aria-labelledby="reportCategoryVisitTitle">
+                  <div class="report-table-card__head">
+                    <div>
+                      <p class="section-kicker">Categoría y agenda</p>
+                      <h4 id="reportCategoryVisitTitle">Detalle por categoría y tipo de visita</h4>
+                    </div>
+                  </div>
+                  <div class="report-table-empty is-hidden" id="reportCategoryVisitEmptyState">No hay agendas válidas para mostrar el detalle por categoría y tipo de visita.</div>
+                  <div class="report-table-wrapper" id="reportCategoryVisitTableWrapper">
+                    <table class="report-table report-table--compact" aria-describedby="reportCategoryVisitTitle">
+                      <thead>
+                        <tr>
+                          <th scope="col">Categoría</th>
+                          <th scope="col">Tipo visita</th>
+                          <th scope="col" class="report-table__numeric">Agendas válidas</th>
+                          <th scope="col" class="report-table__numeric">% 0-2 días</th>
+                          <th scope="col" class="report-table__numeric">% 0-3 días</th>
+                          <th scope="col" class="report-table__numeric">% 0-6 días</th>
+                          <th scope="col" class="report-table__numeric">% 7 o más días</th>
+                          <th scope="col" class="report-table__numeric">Media</th>
+                          <th scope="col" class="report-table__numeric">Mediana</th>
+                          <th scope="col" class="report-table__numeric">Máxima</th>
+                        </tr>
+                      </thead>
+                      <tbody id="reportCategoryVisitTableBody"></tbody>
+                    </table>
+                  </div>
+                </article>
+              </section>
+
               <section class="report-charts" aria-labelledby="reportChartsTitle">
                 <div class="report-section-head">
                   <div>
@@ -591,6 +679,5 @@
   <script src="assets/js/xlsx-lite.js"></script>
   <script src="assets/js/charts.js"></script>
   <script src="assets/js/app.js"></script>
-  <script src="assets/js/report.js"></script>
 </body>
 </html>
