@@ -66,6 +66,7 @@
       direction: "desc"
     },
     selectedMapZone: "",
+    filtersCompactTicking: false,
     currentPage: 1,
     pageSize: 20
   };
@@ -175,6 +176,8 @@
       refs.zoneBubbleMap.addEventListener("click", handleZoneBubbleClick);
       refs.zoneBubbleMap.addEventListener("keydown", handleZoneBubbleKeydown);
     }
+    window.addEventListener("scroll", handleFiltersCompactScroll, { passive: true });
+    window.addEventListener("resize", handleFiltersCompactScroll, { passive: true });
 
     refs.tabButtons.forEach((button) => {
       button.addEventListener("click", () => setActiveTab(button.dataset.tabTarget || "upload"));
@@ -207,6 +210,37 @@
         setStatus("error", "Error al exportar", error.message, "Revise si el grafico tiene datos visibles.");
       }
     });
+
+    updateFiltersCompactMode();
+  }
+
+  function handleFiltersCompactScroll() {
+    if (!refs.filtersPanel || state.filtersCompactTicking) {
+      return;
+    }
+
+    state.filtersCompactTicking = true;
+    window.requestAnimationFrame(updateFiltersCompactMode);
+  }
+
+  function updateFiltersCompactMode() {
+    state.filtersCompactTicking = false;
+    if (!refs.filtersPanel) {
+      return;
+    }
+
+    const canCompact = window.matchMedia("(min-width: 921px)").matches;
+    if (!canCompact) {
+      refs.filtersPanel.classList.remove("filters-panel--compact");
+      return;
+    }
+
+    const scrollY = window.scrollY || document.documentElement.scrollTop || 0;
+    if (scrollY > 140) {
+      refs.filtersPanel.classList.add("filters-panel--compact");
+    } else if (scrollY < 80) {
+      refs.filtersPanel.classList.remove("filters-panel--compact");
+    }
   }
 
   function renderExpectedColumns() {
