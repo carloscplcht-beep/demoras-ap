@@ -6,6 +6,7 @@
   <meta name="color-scheme" content="light">
   <title>Programa de análisis de las demoras en Atención Primaria</title>
   <link rel="icon" type="image/png" href="icon-192.png">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="assets/css/styles.css">
   <link rel="manifest" href="manifest.webmanifest">
 </head>
@@ -350,24 +351,37 @@
 
       <section class="tab-panel" id="tab-charts" data-tab-panel="charts">
         <div class="charts-grid charts-grid--detail">
-          <article class="glass-panel chart-card chart-card--wide">
+          <article class="glass-panel chart-card chart-card--wide chart-card--map">
             <div class="chart-card__head">
               <div>
-                <p class="section-kicker">Mapa analítico</p>
-                <h3>Mapa interactivo por Zona Básica de Salud</h3>
-                <p class="section-description">Representación visual analítica no geográfica. El tamaño refleja volumen de agendas válidas y el color refleja demora media.</p>
+                <p class="section-kicker">Mapa territorial</p>
+                <h3>Mapa geográfico de accesibilidad por Zona Básica de Salud</h3>
+                <p class="section-description">Los círculos se ubican de forma aproximada sobre la localidad o cabecera de referencia de cada Zona Básica de Salud. El tamaño representa el volumen de agendas válidas y el color la demora media.</p>
               </div>
             </div>
-            <div class="bubble-map-legend" aria-label="Leyenda de demora media">
-              <span><i class="bubble-map-legend__dot bubble-map-legend__dot--good"></i>≤ 2 días</span>
-              <span><i class="bubble-map-legend__dot bubble-map-legend__dot--warn"></i>&gt; 2 y ≤ 3 días</span>
-              <span><i class="bubble-map-legend__dot bubble-map-legend__dot--orange"></i>&gt; 3 y ≤ 6 días</span>
-              <span><i class="bubble-map-legend__dot bubble-map-legend__dot--bad"></i>≥ 7 días</span>
-            </div>
-            <div class="bubble-map-layout">
-              <div class="bubble-map" id="zoneBubbleMap" aria-live="polite"></div>
-              <aside class="bubble-map-detail" id="zoneBubbleDetail">
-                Seleccione una zona para ver el detalle.
+
+            <div class="geo-map-layout">
+              <div class="geo-map-shell">
+                <div class="geo-map" id="zoneGeoMap" aria-label="Mapa geográfico de accesibilidad por Zona Básica de Salud"></div>
+                <div class="map-empty-state" id="zoneMapEmptyState">Cargue un Excel para visualizar el mapa geográfico.</div>
+              </div>
+
+              <aside class="geo-map-panel" aria-label="Leyenda y notas del mapa">
+                <div>
+                  <p class="section-kicker">Leyenda</p>
+                  <h4>Color por demora media</h4>
+                </div>
+                <ul class="map-legend">
+                  <li><span class="map-legend__dot map-legend__dot--green"></span> ≤2 días</li>
+                  <li><span class="map-legend__dot map-legend__dot--amber"></span> &gt;2 a 3 días</li>
+                  <li><span class="map-legend__dot map-legend__dot--orange"></span> &gt;3 a 6 días</li>
+                  <li><span class="map-legend__dot map-legend__dot--red"></span> ≥7 días</li>
+                </ul>
+                <p class="map-note">Las teselas visuales proceden de OpenStreetMap. El Excel se procesa localmente en el navegador y sus datos no se envían al mapa base ni a servicios externos.</p>
+                <div class="map-diagnostic is-hidden" id="zoneMapMissing">
+                  <strong>Algunas zonas no tienen coordenadas configuradas</strong>
+                  <span id="zoneMapMissingList"></span>
+                </div>
               </aside>
             </div>
           </article>
@@ -678,6 +692,7 @@
   </div>
 
   <script src="assets/js/xlsx-lite.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="assets/js/charts.js"></script>
   <script src="assets/js/app.js"></script>
 </body>

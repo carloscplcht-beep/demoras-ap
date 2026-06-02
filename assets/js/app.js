@@ -46,6 +46,85 @@
     sky: "#4ca0df"
   };
 
+  const ZBS_COORDS = {
+    "ABENOJAR": { lat: 38.879, lng: -4.357 },
+    "AGUDO": { lat: 38.981, lng: -4.872 },
+    "ALBALADEJO": { lat: 38.618, lng: -2.805 },
+    "ALCAZAR DE SAN JUAN": { lat: 39.391, lng: -3.210 },
+    "ALCAZAR I": { lat: 39.391, lng: -3.210 },
+    "ALCAZAR II": { lat: 39.391, lng: -3.210 },
+    "ALCAZAR DE SAN JUAN I": { lat: 39.391, lng: -3.210 },
+    "ALCAZAR DE SAN JUAN II": { lat: 39.391, lng: -3.210 },
+    "ALCOBA DE LOS MONTES": { lat: 39.258, lng: -4.477 },
+    "ALCOLEA DE CALATRAVA": { lat: 38.986, lng: -4.114 },
+    "ALDEA DEL REY": { lat: 38.738, lng: -3.839 },
+    "ALMADEN": { lat: 38.775, lng: -4.831 },
+    "ALMAGRO": { lat: 38.889, lng: -3.711 },
+    "ALMEDINA": { lat: 38.624, lng: -2.954 },
+    "ALMODOVAR DEL CAMPO": { lat: 38.709, lng: -4.179 },
+    "ALMURADIEL": { lat: 38.513, lng: -3.497 },
+    "ARGAMASILLA DE ALBA": { lat: 39.129, lng: -3.092 },
+    "ARGAMASILLA DE CALATRAVA": { lat: 38.729, lng: -4.078 },
+    "ARENAS DE SAN JUAN": { lat: 39.218, lng: -3.502 },
+    "BOLAÑOS": { lat: 38.906, lng: -3.664 },
+    "BOLAÑOS DE CALATRAVA": { lat: 38.906, lng: -3.664 },
+    "CALZADA DE CALATRAVA": { lat: 38.704, lng: -3.776 },
+    "CAMPO DE CRIPTANA": { lat: 39.404, lng: -3.124 },
+    "CARRION DE CALATRAVA": { lat: 39.018, lng: -3.816 },
+    "CHILLON": { lat: 38.794, lng: -4.866 },
+    "CIUDAD REAL": { lat: 38.986, lng: -3.929 },
+    "CIUDAD REAL 1": { lat: 38.986, lng: -3.929 },
+    "CIUDAD REAL 2": { lat: 38.986, lng: -3.929 },
+    "CIUDAD REAL 3": { lat: 38.986, lng: -3.929 },
+    "CIUDAD REAL 4": { lat: 38.986, lng: -3.929 },
+    "CIUDAD REAL I": { lat: 38.986, lng: -3.929 },
+    "CIUDAD REAL II": { lat: 38.986, lng: -3.929 },
+    "CIUDAD REAL III": { lat: 38.986, lng: -3.929 },
+    "CIUDAD REAL IV": { lat: 38.986, lng: -3.929 },
+    "CORRAL DE CALATRAVA": { lat: 38.858, lng: -4.080 },
+    "DAIMIEL": { lat: 39.070, lng: -3.615 },
+    "DAIMIEL 2": { lat: 39.070, lng: -3.615 },
+    "DAIMIEL II": { lat: 39.070, lng: -3.615 },
+    "HERENCIA": { lat: 39.366, lng: -3.356 },
+    "HORCAJO DE LOS MONTES": { lat: 39.325, lng: -4.648 },
+    "LA SOLANA": { lat: 38.945, lng: -3.238 },
+    "MALAGON": { lat: 39.166, lng: -3.854 },
+    "MANZANARES": { lat: 38.999, lng: -3.371 },
+    "MANZANARES 1": { lat: 38.999, lng: -3.371 },
+    "MANZANARES 2": { lat: 38.999, lng: -3.371 },
+    "MANZANARES I": { lat: 38.999, lng: -3.371 },
+    "MANZANARES II": { lat: 38.999, lng: -3.371 },
+    "MEMBRILLA": { lat: 38.972, lng: -3.343 },
+    "MIGUELTURRA": { lat: 38.964, lng: -3.891 },
+    "MORAL DE CALATRAVA": { lat: 38.829, lng: -3.579 },
+    "PEDRO MUÑOZ": { lat: 39.402, lng: -2.946 },
+    "PIEDRABUENA": { lat: 39.035, lng: -4.175 },
+    "PORZUNA": { lat: 39.146, lng: -4.154 },
+    "POZUELO DE CALATRAVA": { lat: 38.912, lng: -3.837 },
+    "PUERTOLLANO": { lat: 38.687, lng: -4.112 },
+    "PUERTOLLANO I": { lat: 38.687, lng: -4.112 },
+    "PUERTOLLANO II": { lat: 38.687, lng: -4.112 },
+    "PUERTOLLANO III": { lat: 38.687, lng: -4.112 },
+    "PUERTOLLANO IV": { lat: 38.687, lng: -4.112 },
+    "RETUERTA DEL BULLAQUE": { lat: 39.463, lng: -4.409 },
+    "SANTA CRUZ DE MUDELA": { lat: 38.642, lng: -3.467 },
+    "SOCUELLAMOS": { lat: 39.285, lng: -2.793 },
+    "TOMELLOSO": { lat: 39.157, lng: -3.021 },
+    "TOMELLOSO 1": { lat: 39.157, lng: -3.021 },
+    "TOMELLOSO 2": { lat: 39.157, lng: -3.021 },
+    "TOMELLOSO I": { lat: 39.157, lng: -3.021 },
+    "TOMELLOSO II": { lat: 39.157, lng: -3.021 },
+    "TORRALBA DE CALATRAVA": { lat: 39.018, lng: -3.750 },
+    "VALDEPEÑAS": { lat: 38.762, lng: -3.384 },
+    "VALDEPEÑAS I": { lat: 38.762, lng: -3.384 },
+    "VALDEPEÑAS II": { lat: 38.762, lng: -3.384 },
+    "VILLAHERMOSA": { lat: 38.750, lng: -2.871 },
+    "VILLANUEVA DE LA FUENTE": { lat: 38.694, lng: -2.697 },
+    "VILLANUEVA DE LOS INFANTES": { lat: 38.734, lng: -3.013 },
+    "VILLARRUBIA DE LOS OJOS": { lat: 39.219, lng: -3.608 },
+    "VISO DEL MARQUES": { lat: 38.522, lng: -3.563 }
+  };
+
   const state = {
     activeTab: "upload",
     workbookName: "",
@@ -65,10 +144,12 @@
       column: "Accesibilidad",
       direction: "desc"
     },
-    selectedMapZone: "",
     filtersCompactTicking: false,
     currentPage: 1,
-    pageSize: 20
+    pageSize: 20,
+    zoneMap: null,
+    zoneMapLayer: null,
+    zoneMapTileLayer: null
   };
 
   const refs = {
@@ -120,8 +201,10 @@
     visitTypeChart: document.getElementById("visitTypeChart"),
     histogramChart: document.getElementById("histogramChart"),
     centerBandsChart: document.getElementById("centerBandsChart"),
-    zoneBubbleMap: document.getElementById("zoneBubbleMap"),
-    zoneBubbleDetail: document.getElementById("zoneBubbleDetail"),
+    zoneGeoMap: document.getElementById("zoneGeoMap"),
+    zoneMapEmptyState: document.getElementById("zoneMapEmptyState"),
+    zoneMapMissing: document.getElementById("zoneMapMissing"),
+    zoneMapMissingList: document.getElementById("zoneMapMissingList"),
     printReportButton: document.getElementById("printReportButton"),
     reportScope: document.getElementById("reportScope"),
     reportArea: document.getElementById("reportArea"),
@@ -172,10 +255,6 @@
     refs.prevPageButton.addEventListener("click", () => changePage(-1));
     refs.nextPageButton.addEventListener("click", () => changePage(1));
     refs.dataTableHead.addEventListener("click", handleSortClick);
-    if (refs.zoneBubbleMap) {
-      refs.zoneBubbleMap.addEventListener("click", handleZoneBubbleClick);
-      refs.zoneBubbleMap.addEventListener("keydown", handleZoneBubbleKeydown);
-    }
     window.addEventListener("scroll", handleFiltersCompactScroll, { passive: true });
     window.addEventListener("resize", handleFiltersCompactScroll, { passive: true });
 
@@ -187,7 +266,6 @@
       refs[filter.key].addEventListener("change", () => {
         state.filters[filter.key] = refs[filter.key].value;
         state.currentPage = 1;
-        state.selectedMapZone = "";
         renderAll();
       });
     });
@@ -300,7 +378,6 @@
       state.rows = normalizeRows(workbookData.rows);
       state.currentPage = 1;
       state.tableSearch = "";
-      state.selectedMapZone = "";
       state.tableSort = {
         column: "Accesibilidad",
         direction: "desc"
@@ -524,6 +601,9 @@
     refs.tabPanels.forEach((panel) => {
       panel.classList.toggle("is-active", panel.dataset.tabPanel === tabName);
     });
+    if (tabName === "charts") {
+      scheduleMapResize();
+    }
   }
 
   function renderAll() {
@@ -1116,7 +1196,7 @@
         ]
       }));
 
-    renderZoneBubbleMap(validRows);
+    renderGeographicZoneMap(validRows);
 
     window.DemorasCharts.renderHorizontalBarChart(refs.centersChart, {
       items: centers,
@@ -1162,174 +1242,243 @@
     window.DemorasCharts.setEmpty(refs.visitTypeChart, message);
     window.DemorasCharts.setEmpty(refs.histogramChart, message);
     window.DemorasCharts.setEmpty(refs.centerBandsChart, message);
-    setZoneBubbleMapEmpty(message);
+    setMapEmpty(message);
   }
 
-  function renderZoneBubbleMap(validRows) {
-    if (!refs.zoneBubbleMap || !refs.zoneBubbleDetail) {
+  function renderGeographicZoneMap(validRows) {
+    if (!refs.zoneGeoMap) {
       return;
     }
 
-    const zones = aggregateByField(validRows, "Zona")
-      .filter((item) => item.count > 0)
-      .sort((a, b) =>
-        normalizeText(a.area).localeCompare(normalizeText(b.area), "es", { sensitivity: "base", numeric: true }) ||
-        b.mean - a.mean ||
-        b.count - a.count ||
-        a.label.localeCompare(b.label, "es", { sensitivity: "base", numeric: true })
-      );
-
-    if (!zones.length) {
-      setZoneBubbleMapEmpty("No hay datos suficientes para generar el mapa con los filtros actuales.");
+    if (!window.L) {
+      setMapEmpty("No se ha podido cargar Leaflet. Revise la conexión o use una copia local de la librería.");
       return;
     }
 
-    if (!state.selectedMapZone || !zones.some((zone) => zone.label === state.selectedMapZone)) {
-      state.selectedMapZone = zones[0].label;
-    }
+    const zoneRows = aggregateByZoneForMap(validRows);
+    const zonesWithCoords = zoneRows.filter((zone) => zone.coordinates);
+    const missingZones = zoneRows.filter((zone) => !zone.coordinates).map((zone) => zone.label);
 
-    const maxCount = Math.max(...zones.map((zone) => zone.count));
-    refs.zoneBubbleMap.innerHTML = zones
-      .map((zone) => {
-        const size = getBubbleSize(zone.count, maxCount);
-        const level = getDelayLevel(zone.mean);
-        const selected = state.selectedMapZone === zone.label ? " is-selected" : "";
-        const title = buildZoneTooltip(zone);
-        return (
-          '<button class="zone-bubble zone-bubble--' +
-          level.key +
-          selected +
-          '" type="button" data-zone="' +
-          escapeHtml(zone.label) +
-          '" style="--bubble-size:' +
-          size +
-          'px" title="' +
-          escapeHtml(title) +
-          '">' +
-          '<span class="zone-bubble__name">' +
-          escapeHtml(zone.label) +
-          "</span>" +
-          '<span class="zone-bubble__value">' +
-          escapeHtml(formatDayMetric(zone.mean)) +
-          "</span>" +
-          '<span class="zone-bubble__count">' +
-          escapeHtml(formatInteger(zone.count)) +
-          " agendas</span>" +
-          "</button>"
-        );
-      })
-      .join("");
+    renderMissingZoneDiagnostic(missingZones);
 
-    const selectedZone = zones.find((zone) => zone.label === state.selectedMapZone) || zones[0];
-    renderZoneBubbleDetail(selectedZone);
-  }
-
-  function setZoneBubbleMapEmpty(message) {
-    if (refs.zoneBubbleMap) {
-      refs.zoneBubbleMap.innerHTML = '<div class="bubble-map-empty">' + escapeHtml(message) + "</div>";
-    }
-    if (refs.zoneBubbleDetail) {
-      refs.zoneBubbleDetail.textContent = message;
-    }
-    state.selectedMapZone = "";
-  }
-
-  function handleZoneBubbleClick(event) {
-    const bubble = event.target.closest("[data-zone]");
-    if (!bubble) {
-      return;
-    }
-    state.selectedMapZone = bubble.getAttribute("data-zone") || "";
-    renderCharts();
-  }
-
-  function handleZoneBubbleKeydown(event) {
-    if (event.key !== "Enter" && event.key !== " ") {
-      return;
-    }
-    const bubble = event.target.closest("[data-zone]");
-    if (!bubble) {
-      return;
-    }
-    event.preventDefault();
-    state.selectedMapZone = bubble.getAttribute("data-zone") || "";
-    renderCharts();
-  }
-
-  function renderZoneBubbleDetail(zone) {
-    if (!refs.zoneBubbleDetail || !zone) {
+    if (!zonesWithCoords.length) {
+      setMapEmpty("No hay zonas con coordenadas configuradas para el subconjunto filtrado.");
       return;
     }
 
-    const level = getDelayLevel(zone.mean);
-    refs.zoneBubbleDetail.innerHTML =
-      '<div class="bubble-map-detail__kicker">Zona seleccionada</div>' +
-      "<h4>" +
-      escapeHtml(zone.label) +
-      "</h4>" +
-      '<span class="bubble-map-detail__badge bubble-map-detail__badge--' +
-      level.key +
-      '">' +
-      escapeHtml(level.label) +
-      "</span>" +
-      '<dl class="bubble-map-detail__metrics">' +
-      "<div><dt>Agendas válidas</dt><dd>" +
-      formatInteger(zone.count) +
-      "</dd></div>" +
-      "<div><dt>% 0-2 días</dt><dd>" +
-      formatPercent(zone.pct0to2) +
-      "</dd></div>" +
-      "<div><dt>% 0-3 días</dt><dd>" +
-      formatPercent(zone.pct0to3) +
-      "</dd></div>" +
-      "<div><dt>% 0-6 días</dt><dd>" +
-      formatPercent(zone.pct0to6) +
-      "</dd></div>" +
-      "<div><dt>% 7 o más días</dt><dd>" +
-      formatPercent(zone.pct7Plus) +
-      "</dd></div>" +
-      "<div><dt>Demora media</dt><dd>" +
-      formatDayMetric(zone.mean) +
-      "</dd></div>" +
-      "<div><dt>Demora mediana</dt><dd>" +
-      formatDayMetric(zone.median) +
-      "</dd></div>" +
-      "<div><dt>Demora máxima</dt><dd>" +
-      formatDayMetric(zone.max) +
-      "</dd></div>" +
-      "</dl>";
+    ensureZoneMap();
+    clearMapEmpty();
+    state.zoneMapLayer.clearLayers();
+
+    const maxTotal = Math.max(...zonesWithCoords.map((zone) => zone.totalValid));
+    const minTotal = Math.min(...zonesWithCoords.map((zone) => zone.totalValid));
+    const coordinateGroups = groupZonesByCoordinate(zonesWithCoords);
+    const bounds = [];
+
+    coordinateGroups.forEach((group) => {
+      group.forEach((zone, index) => {
+        const point = applyCoordinateOffset(zone.coordinates, index, group.length);
+        const marker = window.L.circleMarker([point.lat, point.lng], {
+          radius: scaleMapRadius(zone.totalValid, minTotal, maxTotal),
+          color: getMapColor(zone.mean),
+          weight: 2,
+          opacity: 0.95,
+          fillColor: getMapColor(zone.mean),
+          fillOpacity: 0.68
+        });
+
+        marker.bindPopup(buildZoneMapPopup(zone), {
+          maxWidth: 320,
+          className: "zone-map-popup"
+        });
+        marker.bindTooltip(zone.label + " · " + formatDayMetric(zone.mean), {
+          sticky: true,
+          direction: "top"
+        });
+        marker.addTo(state.zoneMapLayer);
+        bounds.push([point.lat, point.lng]);
+      });
+    });
+
+    if (bounds.length === 1) {
+      state.zoneMap.setView(bounds[0], 11);
+    } else {
+      state.zoneMap.fitBounds(bounds, {
+        padding: [28, 28],
+        maxZoom: 11
+      });
+    }
+    scheduleMapResize();
   }
 
-  function buildZoneTooltip(zone) {
-    return [
-      zone.label,
-      "Agendas válidas: " + formatInteger(zone.count),
-      "% 0-2 días: " + formatPercent(zone.pct0to2),
-      "% 0-3 días: " + formatPercent(zone.pct0to3),
-      "% 0-6 días: " + formatPercent(zone.pct0to6),
-      "% 7 o más días: " + formatPercent(zone.pct7Plus),
-      "Demora media: " + formatDayMetric(zone.mean),
-      "Mediana: " + formatDayMetric(zone.median),
-      "Máxima: " + formatDayMetric(zone.max)
-    ].join("\n");
+  function ensureZoneMap() {
+    if (state.zoneMap || !refs.zoneGeoMap || !window.L) {
+      return;
+    }
+
+    state.zoneMap = window.L.map(refs.zoneGeoMap, {
+      zoomControl: true,
+      scrollWheelZoom: true
+    }).setView([38.99, -3.93], 9);
+
+    state.zoneMapTileLayer = window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      maxZoom: 18
+    }).addTo(state.zoneMap);
+
+    state.zoneMapLayer = window.L.layerGroup().addTo(state.zoneMap);
   }
 
-  function getBubbleSize(count, maxCount) {
-    const ratio = maxCount > 0 ? count / maxCount : 0;
-    return Math.round(82 + Math.sqrt(ratio) * 86);
+  function aggregateByZoneForMap(rows) {
+    const grouped = new Map();
+
+    rows.forEach((row) => {
+      const label = normalizeText(row["Zona"]) || "Sin zona";
+      const key = normalizeZoneName(label);
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          label: label,
+          rows: []
+        });
+      }
+      grouped.get(key).rows.push(row);
+    });
+
+    return Array.from(grouped.values()).map((group) => {
+      const metrics = calculateExecutiveMetrics(group.rows);
+      return Object.assign({}, group, metrics, {
+        coordinates: getZoneCoordinates(group.label)
+      });
+    }).sort((left, right) => right.mean - left.mean || right.totalValid - left.totalValid);
   }
 
-  function getDelayLevel(mean) {
+  function getZoneCoordinates(zoneName) {
+    const normalizedZoneName = normalizeZoneName(zoneName);
+    if (ZBS_COORDS[normalizedZoneName]) {
+      return ZBS_COORDS[normalizedZoneName];
+    }
+
+    const matchingKey = Object.keys(ZBS_COORDS).find((key) => normalizeZoneName(key) === normalizedZoneName);
+    return matchingKey ? ZBS_COORDS[matchingKey] : null;
+  }
+
+  function normalizeZoneName(value) {
+    return normalizeText(value)
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[ºª]/g, "")
+      .replace(/[-_/.,;:()]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toUpperCase();
+  }
+
+  function groupZonesByCoordinate(zones) {
+    const grouped = new Map();
+    zones.forEach((zone) => {
+      const key = zone.coordinates.lat.toFixed(4) + "," + zone.coordinates.lng.toFixed(4);
+      if (!grouped.has(key)) {
+        grouped.set(key, []);
+      }
+      grouped.get(key).push(zone);
+    });
+    return Array.from(grouped.values());
+  }
+
+  function applyCoordinateOffset(coordinates, index, total) {
+    if (total <= 1) {
+      return coordinates;
+    }
+
+    const angle = (Math.PI * 2 * index) / total;
+    const distance = 0.010 + Math.min(total, 6) * 0.0015;
+    const latOffset = Math.sin(angle) * distance;
+    const lngOffset = (Math.cos(angle) * distance) / Math.max(0.45, Math.cos((coordinates.lat * Math.PI) / 180));
+    return {
+      lat: coordinates.lat + latOffset,
+      lng: coordinates.lng + lngOffset
+    };
+  }
+
+  function scaleMapRadius(value, minValue, maxValue) {
+    const minRadius = 8;
+    const maxRadius = 34;
+    if (maxValue === minValue) {
+      return Math.round((minRadius + maxRadius) / 2);
+    }
+    return minRadius + ((value - minValue) / (maxValue - minValue)) * (maxRadius - minRadius);
+  }
+
+  function getMapColor(mean) {
     if (mean <= 2) {
-      return { key: "good", label: "Demora media ≤ 2 días" };
+      return PALETTE.green;
     }
     if (mean <= 3) {
-      return { key: "warn", label: "Demora media > 2 y ≤ 3 días" };
+      return PALETTE.amber;
     }
     if (mean <= 6) {
-      return { key: "orange", label: "Demora media > 3 y ≤ 6 días" };
+      return "#e9823a";
     }
-    return { key: "bad", label: "Demora media ≥ 7 días" };
+    return PALETTE.red;
+  }
+
+  function buildZoneMapPopup(zone) {
+    return (
+      '<div class="map-popup">' +
+      "<h4>" + escapeHtml(zone.label) + "</h4>" +
+      '<div class="map-popup__grid">' +
+      "<span>Agendas válidas</span><span>" + formatInteger(zone.totalValid) + "</span>" +
+      "<span>% 0-2 días</span><span>" + formatPercent(zone.pct0to2) + "</span>" +
+      "<span>% 0-3 días</span><span>" + formatPercent(zone.pct0to3) + "</span>" +
+      "<span>% 0-6 días</span><span>" + formatPercent(zone.pct0to6) + "</span>" +
+      "<span>% 7 o más días</span><span>" + formatPercent(zone.pct7Plus) + "</span>" +
+      "<span>Demora media</span><span>" + formatDayMetric(zone.mean) + "</span>" +
+      "<span>Mediana</span><span>" + formatDayMetric(zone.median) + "</span>" +
+      "<span>Máxima</span><span>" + formatDayMetric(zone.max) + "</span>" +
+      "</div>" +
+      "</div>"
+    );
+  }
+
+  function renderMissingZoneDiagnostic(missingZones) {
+    if (!refs.zoneMapMissing || !refs.zoneMapMissingList) {
+      return;
+    }
+
+    if (!missingZones.length) {
+      refs.zoneMapMissing.classList.add("is-hidden");
+      refs.zoneMapMissingList.textContent = "";
+      return;
+    }
+
+    refs.zoneMapMissing.classList.remove("is-hidden");
+    refs.zoneMapMissingList.textContent = summarizeTextList(uniqueSorted(missingZones), 8);
+    console.info("Zonas sin coordenadas configuradas para el mapa:", missingZones);
+  }
+
+  function setMapEmpty(message) {
+    if (refs.zoneMapEmptyState) {
+      refs.zoneMapEmptyState.textContent = message;
+      refs.zoneMapEmptyState.classList.remove("is-hidden");
+    }
+    if (state.zoneMapLayer) {
+      state.zoneMapLayer.clearLayers();
+    }
+  }
+
+  function clearMapEmpty() {
+    if (refs.zoneMapEmptyState) {
+      refs.zoneMapEmptyState.classList.add("is-hidden");
+    }
+  }
+
+  function scheduleMapResize() {
+    if (!state.zoneMap) {
+      return;
+    }
+    window.setTimeout(() => {
+      state.zoneMap.invalidateSize();
+    }, 80);
   }
 
   function buildCategorySummaries(validRows) {
@@ -1659,7 +1808,6 @@
     resetFilterValues();
     state.tableSearch = "";
     state.currentPage = 1;
-    state.selectedMapZone = "";
     refs.tableSearchInput.value = "";
     renderAll();
   }
@@ -1770,7 +1918,6 @@
     state.rows = [];
     state.tableSearch = "";
     state.currentPage = 1;
-    state.selectedMapZone = "";
     state.tableSort = {
       column: "Accesibilidad",
       direction: "desc"
