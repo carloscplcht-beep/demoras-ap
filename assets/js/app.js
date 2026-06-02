@@ -1485,7 +1485,7 @@
     return summarizeGroupedRows(validRows, [
       {
         key: "category",
-        column: "CategorÃ­a",
+        accessor: getRecordCategory,
         fallback: "Sin categoría"
       }
     ]).sort(compareByDelayPressure);
@@ -1495,12 +1495,12 @@
     return summarizeGroupedRows(validRows, [
       {
         key: "category",
-        column: "CategorÃ­a",
+        accessor: getRecordCategory,
         fallback: "Sin categoría"
       },
       {
         key: "visitType",
-        column: "Tipo visita",
+        accessor: getRecordVisitType,
         fallback: "Sin tipo de visita"
       }
     ]).sort((left, right) => {
@@ -1509,11 +1509,34 @@
     });
   }
 
+  function getRecordCategory(row) {
+    return (
+      normalizeText(row["Categoría"]) ||
+      normalizeText(row["Categoria"]) ||
+      normalizeText(row.categoria) ||
+      normalizeText(row.category) ||
+      "Sin categoría"
+    );
+  }
+
+  function getRecordVisitType(row) {
+    return (
+      normalizeText(row["Tipo visita"]) ||
+      normalizeText(row["Tipo Visita"]) ||
+      normalizeText(row.tipoVisita) ||
+      normalizeText(row.visitType) ||
+      "Sin tipo de visita"
+    );
+  }
+
   function summarizeGroupedRows(validRows, descriptors) {
     const grouped = new Map();
 
     validRows.forEach((row) => {
-      const labels = descriptors.map((descriptor) => normalizeText(row[descriptor.column]) || descriptor.fallback);
+      const labels = descriptors.map((descriptor) => {
+        const value = descriptor.accessor ? descriptor.accessor(row) : row[descriptor.column];
+        return normalizeText(value) || descriptor.fallback;
+      });
       const groupKey = labels.join("\u001f");
 
       if (!grouped.has(groupKey)) {
