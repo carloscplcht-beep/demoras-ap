@@ -1435,12 +1435,75 @@ input[type="search"]:focus {
   pointer-events: auto;
 }
 
+.report-toolbar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  pointer-events: auto;
+}
+
 #printReportButton {
   position: relative;
   z-index: 6;
   pointer-events: auto;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+}
+
+.report-print-notice {
+  padding: 12px 14px;
+  border: 1px solid rgba(236, 179, 67, 0.28);
+  border-radius: 16px;
+  background: rgba(255, 243, 217, 0.78);
+  color: #73551a;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.printable-preview {
+  position: fixed;
+  inset: 18px;
+  z-index: 120;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(27, 55, 88, 0.14);
+  border-radius: 24px;
+  background: rgba(247, 251, 255, 0.96);
+  box-shadow: 0 24px 70px rgba(27, 55, 88, 0.24);
+  backdrop-filter: blur(18px);
+}
+
+.printable-preview.is-hidden {
+  display: none;
+}
+
+.printable-preview__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.printable-preview__toolbar strong {
+  color: var(--ink-900);
+}
+
+.printable-preview__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.printable-preview iframe {
+  width: 100%;
+  min-height: 0;
+  border: 1px solid rgba(27, 55, 88, 0.14);
+  border-radius: 16px;
+  background: #ffffff;
 }
 
 .report-document,
@@ -1756,6 +1819,16 @@ input[type="search"]:focus {
     align-items: stretch;
   }
 
+  .report-toolbar__actions {
+    justify-content: stretch;
+  }
+
+  .report-toolbar__actions .primary-button,
+  .report-toolbar__actions .secondary-button,
+  .report-toolbar__actions .ghost-button {
+    flex: 1 1 190px;
+  }
+
   .search-field {
     min-width: 100%;
   }
@@ -1859,6 +1932,8 @@ input[type="search"]:focus {
   #tab-charts,
   .signature-footer,
   .report-toolbar--screen,
+  .report-print-notice,
+  .printable-preview,
   .chart-export-button,
   .ghost-button,
   .secondary-button,

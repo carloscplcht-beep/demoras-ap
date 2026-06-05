@@ -206,6 +206,9 @@
     zoneMapMissing: document.getElementById("zoneMapMissing"),
     zoneMapMissingList: document.getElementById("zoneMapMissingList"),
     printReportButton: document.getElementById("printReportButton"),
+    openPrintableReportButton: document.getElementById("openPrintableReportButton"),
+    downloadPrintableReportButton: document.getElementById("downloadPrintableReportButton"),
+    reportPrintNotice: document.getElementById("reportPrintNotice"),
     reportScope: document.getElementById("reportScope"),
     reportArea: document.getElementById("reportArea"),
     reportZones: document.getElementById("reportZones"),
@@ -251,6 +254,8 @@
     refs.resetFiltersButton.addEventListener("click", resetFilters);
     refs.exportCsvButton.addEventListener("click", exportFilteredTable);
     refs.printReportButton.addEventListener("click", handlePrintReport);
+    refs.openPrintableReportButton.addEventListener("click", handleOpenPrintableReport);
+    refs.downloadPrintableReportButton.addEventListener("click", handleDownloadPrintableReport);
     refs.tableSearchInput.addEventListener("input", handleTableSearch);
     refs.pageSizeSelect.addEventListener("change", handlePageSizeChange);
     refs.prevPageButton.addEventListener("click", () => changePage(-1));
@@ -695,6 +700,8 @@
     refs.resetFiltersButton.disabled = !hasRows;
     refs.exportCsvButton.disabled = !tableRows.length;
     refs.printReportButton.disabled = !hasRows;
+    refs.openPrintableReportButton.disabled = !hasRows;
+    refs.downloadPrintableReportButton.disabled = !hasRows;
     refs.prevPageButton.disabled = !hasRows || state.currentPage <= 1;
     refs.nextPageButton.disabled = !hasRows || state.currentPage >= getTotalPages(tableRows.length);
   }
@@ -1842,20 +1849,231 @@
       event.stopPropagation();
     }
 
-    const reportPanel = document.getElementById("tab-report") || document.querySelector("[data-tab-panel='report']");
-    if (!reportPanel) {
-      console.warn("No se encontró la vista de informe para imprimir.");
+    hidePrintNotice();
+    setActiveTab("report");
+
+    const reportHtml = buildPrintableReportHtml();
+    if (!reportHtml) {
+      showPrintNotice("No se encontró la vista de informe para imprimir.");
+      return;
     }
 
-    setActiveTab("report");
+    if (window.AndroidPrint && typeof window.AndroidPrint.printReport === "function") {
+      try {
+        window.AndroidPrint.printReport(reportHtml);
+        return;
+      } catch (error) {
+        console.warn("No se pudo usar el puente nativo AndroidPrint.", error);
+      }
+    }
 
     const printFn = window.print || globalThis.print;
     if (typeof printFn === "function") {
       printFn.call(window);
+      if (isAndroidPrintConstrainedEnvironment()) {
+        showPrintNotice("En esta versión Android, la impresión directa puede no estar soportada. Use 'Abrir informe imprimible' y después la opción compartir/imprimir del sistema.");
+      }
       return;
     }
 
-    window.alert("La impresión no está disponible en este navegador. Use el menú del navegador > Compartir/Imprimir.");
+    showPrintNotice("La impresión no está disponible en este navegador. Use 'Abrir informe imprimible' o 'Descargar informe HTML'.");
+  }
+
+  function handleOpenPrintableReport(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    hidePrintNotice();
+    setActiveTab("report");
+    openPrintableReportFallback();
+  }
+
+  function handleDownloadPrintableReport(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    hidePrintNotice();
+    setActiveTab("report");
+    downloadPrintableReportHtml();
+  }
+
+  function openPrintableReportFallback() {
+    const reportHtml = buildPrintableReportHtml();
+    if (!reportHtml) {
+      showPrintNotice("No hay informe disponible para abrir.");
+      return;
+    }
+
+    const reportWindow = window.open("", "_blank");
+    if (reportWindow && reportWindow.document) {
+      reportWindow.document.open();
+      reportWindow.document.write(reportHtml);
+      reportWindow.document.close();
+      reportWindow.focus();
+      return;
+    }
+
+    showInternalPrintablePreview(reportHtml);
+    showPrintNotice("No se ha podido abrir una nueva ventana. Se muestra una vista imprimible dentro de la aplicación.");
+  }
+
+  function downloadPrintableReportHtml() {
+    const reportHtml = buildPrintableReportHtml();
+    if (!reportHtml) {
+      showPrintNotice("No hay informe disponible para descargar.");
+      return;
+    }
+
+    const blob = new Blob([reportHtml], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = buildExportFileName("informe_accesibilidad", "html");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
+  function buildPrintableReportHtml() {
+    const reportDocument = document.getElementById("reportDocument");
+    if (!reportDocument) {
+      console.warn("No se encontró el documento de informe para imprimir.");
+      return "";
+    }
+
+    const clonedReport = reportDocument.cloneNode(true);
+    replaceCanvasWithImages(reportDocument, clonedReport);
+
+    return (
+      "<!doctype html>" +
+      '<html lang="es">' +
+      "<head>" +
+      '<meta charset="utf-8">' +
+      '<meta name="viewport" content="width=device-width, initial-scale=1">' +
+      "<title>Informe sobre accesibilidad</title>" +
+      "<style>" + collectPrintableStyles() + "</style>" +
+      "</head>" +
+      "<body>" +
+      '<main class="printable-report-root">' +
+      clonedReport.outerHTML +
+      "</main>" +
+      "</body>" +
+      "</html>"
+    );
+  }
+
+  function collectPrintableStyles() {
+    const rules = [];
+    Array.from(document.styleSheets).forEach((sheet) => {
+      try {
+        Array.from(sheet.cssRules || []).forEach((rule) => {
+          rules.push(rule.cssText);
+        });
+      } catch (error) {
+        // Cross-origin stylesheets are intentionally skipped. App styles are local.
+      }
+    });
+
+    rules.push(
+      "html,body{margin:0;background:#fff;color:#17324d;font-family:Aptos,'Segoe UI',sans-serif;}",
+      ".printable-report-root{max-width:1120px;margin:0 auto;padding:24px;}",
+      ".report-document{display:grid;gap:18px;}",
+      ".chart-host{background:#fff!important;}",
+      "@page{size:A4;margin:16mm 14mm;}",
+      "@media print{.printable-report-root{padding:0;max-width:none}.report-table-wrapper{max-height:none;overflow:visible}.report-table thead{display:table-header-group}.report-table tr,.report-kpis,.report-summary,.report-detail-tables,.report-charts{break-inside:avoid;page-break-inside:avoid}}"
+    );
+
+    return rules.join("\n");
+  }
+
+  function replaceCanvasWithImages(sourceRoot, clonedRoot) {
+    const sourceCanvases = Array.from(sourceRoot.querySelectorAll("canvas"));
+    const clonedCanvases = Array.from(clonedRoot.querySelectorAll("canvas"));
+    sourceCanvases.forEach((canvas, index) => {
+      const clonedCanvas = clonedCanvases[index];
+      if (!clonedCanvas || !canvas.toDataURL) {
+        return;
+      }
+
+      try {
+        const image = document.createElement("img");
+        image.src = canvas.toDataURL("image/png");
+        image.alt = clonedCanvas.getAttribute("aria-label") || "Gráfico del informe";
+        image.style.maxWidth = "100%";
+        image.style.height = "auto";
+        clonedCanvas.replaceWith(image);
+      } catch (error) {
+        // If the canvas cannot be serialized, keep the cloned element.
+      }
+    });
+  }
+
+  function showInternalPrintablePreview(reportHtml) {
+    let preview = document.getElementById("printablePreview");
+    if (!preview) {
+      preview = document.createElement("section");
+      preview.id = "printablePreview";
+      preview.className = "printable-preview";
+      preview.innerHTML =
+        '<div class="printable-preview__toolbar">' +
+        "<strong>Informe imprimible</strong>" +
+        '<div class="printable-preview__actions">' +
+        '<button class="secondary-button" type="button" data-print-preview>Imprimir vista</button>' +
+        '<button class="ghost-button" type="button" data-close-preview>Cerrar</button>' +
+        "</div>" +
+        "</div>" +
+        '<iframe title="Vista imprimible del informe"></iframe>';
+      document.body.appendChild(preview);
+
+      preview.querySelector("[data-close-preview]").addEventListener("click", () => {
+        preview.classList.add("is-hidden");
+      });
+      preview.querySelector("[data-print-preview]").addEventListener("click", () => {
+        const frameWindow = preview.querySelector("iframe").contentWindow;
+        if (frameWindow && typeof frameWindow.print === "function") {
+          frameWindow.focus();
+          frameWindow.print();
+        } else {
+          showPrintNotice("La impresión de la vista interna no está disponible en este navegador.");
+        }
+      });
+    }
+
+    preview.querySelector("iframe").srcdoc = reportHtml;
+    preview.classList.remove("is-hidden");
+  }
+
+  function showPrintNotice(message) {
+    if (!refs.reportPrintNotice) {
+      window.alert(message);
+      return;
+    }
+
+    refs.reportPrintNotice.textContent = message;
+    refs.reportPrintNotice.classList.remove("is-hidden");
+  }
+
+  function hidePrintNotice() {
+    if (!refs.reportPrintNotice) {
+      return;
+    }
+
+    refs.reportPrintNotice.textContent = "";
+    refs.reportPrintNotice.classList.add("is-hidden");
+  }
+
+  function isAndroidPrintConstrainedEnvironment() {
+    const isAndroid = /Android/i.test(navigator.userAgent || "");
+    const isStandalone =
+      (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) ||
+      Boolean(window.navigator.standalone);
+    const hasNativeBridge = Boolean(window.AndroidPrint && typeof window.AndroidPrint.printReport === "function");
+    return isAndroid && (isStandalone || !hasNativeBridge);
   }
 
   function resetFilterValues() {

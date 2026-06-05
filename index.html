@@ -462,8 +462,13 @@
               <h2>Informe final listo para lectura e impresión</h2>
               <p class="section-description">El contenido del informe se actualiza automáticamente según los filtros activos.</p>
             </div>
-            <button id="printReportButton" class="primary-button" type="button">Imprimir informe</button>
+            <div class="report-toolbar__actions">
+              <button id="printReportButton" class="primary-button" type="button">Imprimir informe</button>
+              <button id="openPrintableReportButton" class="secondary-button" type="button">Abrir informe imprimible</button>
+              <button id="downloadPrintableReportButton" class="ghost-button" type="button">Descargar informe HTML</button>
+            </div>
           </div>
+          <div class="report-print-notice is-hidden" id="reportPrintNotice" role="status" aria-live="polite"></div>
 
           <div class="report-document" id="reportDocument">
             <header class="report-header">
