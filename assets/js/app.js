@@ -250,6 +250,7 @@
     refs.fileInput.addEventListener("change", handleFileSelection);
     refs.resetFiltersButton.addEventListener("click", resetFilters);
     refs.exportCsvButton.addEventListener("click", exportFilteredTable);
+    refs.printReportButton.addEventListener("click", handlePrintReport);
     refs.tableSearchInput.addEventListener("input", handleTableSearch);
     refs.pageSizeSelect.addEventListener("change", handlePageSizeChange);
     refs.prevPageButton.addEventListener("click", () => changePage(-1));
@@ -1835,9 +1836,26 @@
     renderAll();
   }
 
-  function handlePrintReport() {
+  function handlePrintReport(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    const reportPanel = document.getElementById("tab-report") || document.querySelector("[data-tab-panel='report']");
+    if (!reportPanel) {
+      console.warn("No se encontró la vista de informe para imprimir.");
+    }
+
     setActiveTab("report");
-    window.print();
+
+    const printFn = window.print || globalThis.print;
+    if (typeof printFn === "function") {
+      printFn.call(window);
+      return;
+    }
+
+    window.alert("La impresión no está disponible en este navegador. Use el menú del navegador > Compartir/Imprimir.");
   }
 
   function resetFilterValues() {
