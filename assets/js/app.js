@@ -205,8 +205,8 @@
     zoneMapEmptyState: document.getElementById("zoneMapEmptyState"),
     zoneMapMissing: document.getElementById("zoneMapMissing"),
     zoneMapMissingList: document.getElementById("zoneMapMissingList"),
+    downloadReportPdfButton: document.getElementById("downloadReportPdfButton"),
     printReportButton: document.getElementById("printReportButton"),
-    openPrintableReportButton: document.getElementById("openPrintableReportButton"),
     downloadPrintableReportButton: document.getElementById("downloadPrintableReportButton"),
     reportPrintNotice: document.getElementById("reportPrintNotice"),
     reportScope: document.getElementById("reportScope"),
@@ -253,8 +253,8 @@
     refs.fileInput.addEventListener("change", handleFileSelection);
     refs.resetFiltersButton.addEventListener("click", resetFilters);
     refs.exportCsvButton.addEventListener("click", exportFilteredTable);
+    refs.downloadReportPdfButton.addEventListener("click", handleDownloadReportPdf);
     refs.printReportButton.addEventListener("click", handlePrintReport);
-    refs.openPrintableReportButton.addEventListener("click", handleOpenPrintableReport);
     refs.downloadPrintableReportButton.addEventListener("click", handleDownloadPrintableReport);
     refs.tableSearchInput.addEventListener("input", handleTableSearch);
     refs.pageSizeSelect.addEventListener("change", handlePageSizeChange);
@@ -699,8 +699,8 @@
     refs.pageSizeSelect.disabled = !hasRows;
     refs.resetFiltersButton.disabled = !hasRows;
     refs.exportCsvButton.disabled = !tableRows.length;
+    refs.downloadReportPdfButton.disabled = !hasRows;
     refs.printReportButton.disabled = !hasRows;
-    refs.openPrintableReportButton.disabled = !hasRows;
     refs.downloadPrintableReportButton.disabled = !hasRows;
     refs.prevPageButton.disabled = !hasRows || state.currentPage <= 1;
     refs.nextPageButton.disabled = !hasRows || state.currentPage >= getTotalPages(tableRows.length);
@@ -1843,6 +1843,78 @@
     renderAll();
   }
 
+  async function handleDownloadReportPdf(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    if (!state.rows.length || refs.downloadReportPdfButton.disabled) {
+      return;
+    }
+
+    hidePrintNotice();
+    setActiveTab("report");
+
+    if (typeof window.html2pdf !== "function") {
+      showPrintNotice("No se ha podido cargar el generador local de PDF. Use 'Descargar informe HTML' como alternativa.");
+      return;
+    }
+
+    const originalText = refs.downloadReportPdfButton.textContent;
+    refs.downloadReportPdfButton.disabled = true;
+    refs.downloadReportPdfButton.textContent = "Generando PDF...";
+
+    let exportNode = null;
+    try {
+      exportNode = buildReportPdfElement();
+      document.body.classList.add("report-pdf-exporting");
+      await waitForNextFrame();
+
+      const filename = buildReportPdfFileName();
+      const options = {
+        margin: [10, 10, 10, 10],
+        filename,
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: "#ffffff",
+          logging: false
+        },
+        jsPDF: {
+          unit: "mm",
+          format: "a4",
+          orientation: "portrait"
+        },
+        pagebreak: {
+          mode: ["css", "legacy"],
+          avoid: [".kpi-card", ".report-summary", ".report-table-card", ".chart-card--report"]
+        }
+      };
+
+      const worker = window.html2pdf().set(options).from(exportNode);
+      if (window.AndroidPdf && typeof window.AndroidPdf.saveReportPdf === "function") {
+        const dataUri = await worker.outputPdf("datauristring");
+        const base64 = String(dataUri || "").split(",")[1] || "";
+        if (!base64) {
+          throw new Error("No se ha podido generar el contenido PDF.");
+        }
+        window.AndroidPdf.saveReportPdf(base64, filename);
+        showPrintNotice("PDF generado localmente. Revise la carpeta Descargas del dispositivo.");
+      } else {
+        await worker.save();
+      }
+    } catch (error) {
+      console.error("Error al generar el PDF del informe:", error);
+      showPrintNotice("No se ha podido generar el PDF. Use 'Descargar informe HTML' como alternativa.");
+    } finally {
+      document.body.classList.remove("report-pdf-exporting");
+      refs.downloadReportPdfButton.textContent = originalText;
+      refs.downloadReportPdfButton.disabled = !state.rows.length;
+    }
+  }
+
   function handlePrintReport(event) {
     if (event) {
       event.preventDefault();
@@ -1939,6 +2011,15 @@
     URL.revokeObjectURL(url);
   }
 
+  function buildReportPdfElement() {
+    const reportDocument = document.getElementById("reportDocument");
+    if (!reportDocument) {
+      throw new Error("No se encontró el documento de informe.");
+    }
+
+    return reportDocument;
+  }
+
   function buildPrintableReportHtml() {
     const reportDocument = document.getElementById("reportDocument");
     if (!reportDocument) {
@@ -1965,6 +2046,36 @@
       "</body>" +
       "</html>"
     );
+  }
+
+  function buildReportPdfFileName() {
+    const filteredRows = getFilteredRows();
+    const latestCutoff = getLatestDateSortValue(filteredRows, "Fecha Corte");
+    const datePart = latestCutoff == null ? formatFileDate(new Date()) : formatFileDate(new Date(latestCutoff));
+    const scope = state.filters.centro || state.filters.zona || state.filters.area || "AP";
+    return "Informe_accesibilidad_" + sanitizeFileNamePart(scope) + "_" + datePart + ".pdf";
+  }
+
+  function formatFileDate(date) {
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(date.getUTCDate()).padStart(2, "0");
+    return year + "-" + month + "-" + day;
+  }
+
+  function sanitizeFileNamePart(value) {
+    return normalizeText(value)
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .slice(0, 48) || "AP";
+  }
+
+  function waitForNextFrame() {
+    return new Promise((resolve) => {
+      window.requestAnimationFrame(() => resolve());
+    });
   }
 
   function collectPrintableStyles() {

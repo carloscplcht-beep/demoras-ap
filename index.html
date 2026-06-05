@@ -463,9 +463,9 @@
               <p class="section-description">El contenido del informe se actualiza automáticamente según los filtros activos.</p>
             </div>
             <div class="report-toolbar__actions">
-              <button id="printReportButton" class="primary-button" type="button">Imprimir informe</button>
-              <button id="openPrintableReportButton" class="secondary-button" type="button">Abrir informe imprimible</button>
+              <button id="downloadReportPdfButton" class="primary-button" type="button">Descargar informe PDF</button>
               <button id="downloadPrintableReportButton" class="ghost-button" type="button">Descargar informe HTML</button>
+              <button id="printReportButton" class="secondary-button" type="button">Imprimir informe</button>
             </div>
           </div>
           <div class="report-print-notice is-hidden" id="reportPrintNotice" role="status" aria-live="polite"></div>
@@ -698,6 +698,7 @@
 
   <script src="assets/js/xlsx-lite.js"></script>
   <script src="assets/vendor/leaflet/leaflet.js"></script>
+  <script src="assets/vendor/html2pdf/html2pdf.bundle.min.js"></script>
   <script src="assets/js/charts.js"></script>
   <script src="assets/js/app.js"></script>
 </body>

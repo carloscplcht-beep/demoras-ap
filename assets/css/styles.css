@@ -1443,6 +1443,7 @@ input[type="search"]:focus {
   pointer-events: auto;
 }
 
+#downloadReportPdfButton,
 #printReportButton {
   position: relative;
   z-index: 6;
@@ -1504,6 +1505,49 @@ input[type="search"]:focus {
   border: 1px solid rgba(27, 55, 88, 0.14);
   border-radius: 16px;
   background: #ffffff;
+}
+
+.pdf-report-container {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: -1;
+  width: 1120px;
+  padding: 28px;
+  background: #ffffff;
+  color: var(--ink-900);
+  pointer-events: none;
+}
+
+.pdf-report-container .report-document {
+  display: grid;
+  gap: 18px;
+}
+
+.pdf-report-container .report-table-wrapper {
+  max-height: none;
+  overflow: visible;
+}
+
+.pdf-report-container .report-table,
+.pdf-report-container .report-table--compact {
+  min-width: 0;
+  font-size: 0.72rem;
+}
+
+.pdf-report-container .report-table th,
+.pdf-report-container .report-table td {
+  padding: 7px 6px;
+}
+
+.pdf-report-container .report-table-card,
+.pdf-report-container .report-summary,
+.pdf-report-container .report-kpis,
+.pdf-report-container .report-charts,
+.pdf-report-container .chart-card--report,
+.pdf-report-container .kpi-card {
+  break-inside: avoid;
+  page-break-inside: avoid;
 }
 
 .report-document,
