@@ -1921,7 +1921,7 @@
     hidePrintNotice();
     setActiveTab("report");
 
-    if (typeof window.html2pdf !== "function") {
+    if (!window.jspdf || typeof window.jspdf.jsPDF !== "function") {
       showPrintNotice("No se ha podido cargar el generador local de PDF. Use 'Descargar informe HTML' como alternativa.");
       return;
     }
@@ -1930,47 +1930,13 @@
     refs.downloadReportPdfButton.disabled = true;
     refs.downloadReportPdfButton.textContent = "Generando PDF...";
 
-    let exportNode = null;
     try {
       const logoSources = await resolvePdfLogoSources();
-      exportNode = buildPremiumReportPdfElement(logoSources);
-      document.body.insertBefore(exportNode, document.body.firstChild);
-      document.body.classList.add("report-pdf-exporting");
-      await waitForNextFrame();
-
       const filename = buildReportPdfFileName();
-      const options = {
-        margin: [10, 10, 10, 10],
-        filename,
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: {
-          scale: 2,
-          useCORS: true,
-          backgroundColor: "#ffffff",
-          logging: false,
-          windowWidth: 794
-        },
-        jsPDF: {
-          unit: "mm",
-          format: "a4",
-          orientation: "portrait"
-        },
-        pagebreak: {
-          mode: ["css", "legacy"],
-          avoid: [
-            ".pdf-card",
-            ".pdf-kpi-card",
-            ".pdf-table-wrapper",
-            ".pdf-section-title",
-            ".pdf-context-card",
-            ".pdf-ranking-category-block"
-          ]
-        }
-      };
+      const doc = await generateNativeReportPdf(logoSources);
 
-      const worker = window.html2pdf().set(options).from(exportNode).toPdf();
       if (window.AndroidPdf && typeof window.AndroidPdf.saveReportPdf === "function") {
-        const dataUri = await worker.outputPdf("datauristring");
+        const dataUri = doc.output("datauristring");
         const base64 = String(dataUri || "").split(",")[1] || "";
         if (!base64) {
           throw new Error("No se ha podido generar el contenido PDF.");
@@ -1978,17 +1944,13 @@
         window.AndroidPdf.saveReportPdf(base64, filename);
         showPrintNotice("PDF generado localmente. Revise la carpeta Descargas del dispositivo.");
       } else {
-        const pdfBlob = await worker.outputPdf("blob");
+        const pdfBlob = doc.output("blob");
         downloadBlob(pdfBlob, filename);
       }
     } catch (error) {
       console.error("Error al generar el PDF del informe:", error);
       showPrintNotice("No se ha podido generar el PDF. Use 'Descargar informe HTML' como alternativa.");
     } finally {
-      document.body.classList.remove("report-pdf-exporting");
-      if (exportNode && exportNode.parentNode) {
-        exportNode.parentNode.removeChild(exportNode);
-      }
       refs.downloadReportPdfButton.textContent = originalText;
       refs.downloadReportPdfButton.disabled = !state.rows.length;
     }
@@ -2125,10 +2087,551 @@
         resolve(value);
       };
 
-      image.onload = () => finish(src);
+      image.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = image.naturalWidth || image.width;
+          canvas.height = image.naturalHeight || image.height;
+          const context = canvas.getContext("2d");
+          context.drawImage(image, 0, 0);
+          finish(canvas.toDataURL("image/png"));
+        } catch (error) {
+          finish("");
+        }
+      };
       image.onerror = () => finish("");
       image.src = src;
     });
+  }
+
+  async function generateNativeReportPdf(logoSources) {
+    const jsPDF = window.jspdf && window.jspdf.jsPDF;
+    attachAutoTablePlugin(jsPDF);
+
+    const doc = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4",
+      compress: true
+    });
+
+    if (typeof doc.autoTable !== "function") {
+      throw new Error("No se ha cargado jsPDF-AutoTable.");
+    }
+
+    const filteredRows = getFilteredRows();
+    const validRows = filteredRows.filter((row) => row.__hasValidAcc);
+    const metrics = calculateExecutiveMetrics(validRows);
+    const latestCutoff = getLatestDateSortValue(filteredRows, "Fecha Corte");
+    const zoneMeta = getReportZoneMeta(filteredRows);
+    const context = {
+      filteredRows,
+      validRows,
+      metrics,
+      latestCutoff,
+      zoneMeta,
+      logoSources: logoSources || {}
+    };
+
+    doc.setProperties({
+      title: "Informe sobre accesibilidad",
+      subject: "Programa de analisis de las demoras en Atencion Primaria",
+      author: "Gerencia de Atencion Integrada de Ciudad Real",
+      creator: "Programa de analisis de las demoras en Atencion Primaria"
+    });
+
+    drawNativeCoverPage(doc, context);
+
+    if (metrics) {
+      drawNativeDetailPage(doc, context);
+      drawNativeProfessionalsPage(doc, context);
+      drawNativeRankingsPage(doc, context);
+      drawNativeMethodologyPage(doc);
+    }
+
+    addNativePdfFooters(doc);
+    return doc;
+  }
+
+  function drawNativeCoverPage(doc, context) {
+    const metrics = context.metrics;
+    drawNativeHeader(doc, context.logoSources);
+    drawNativeTitleBlock(doc, context);
+
+    if (!state.rows.length) {
+      drawNativeEmptyState(doc, 86, "Cargue un archivo Excel para generar el informe PDF.");
+      return;
+    }
+
+    if (!metrics) {
+      drawNativeContextCards(doc, context, 82);
+      drawNativeEmptyState(doc, 126, "No hay agendas validas con Accesibilidad numerica en el subconjunto filtrado.");
+      return;
+    }
+
+    drawNativeContextCards(doc, context, 82);
+    const summaryY = drawNativeSummary(doc, context, 132);
+    drawNativeKpiGrid(doc, metrics, summaryY + 8);
+  }
+
+  function drawNativeHeader(doc, logoSources) {
+    const margin = 12;
+    const pageWidth = 210;
+    const logoWidth = 50;
+    const logoHeight = 18;
+
+    doc.setDrawColor(220, 232, 242);
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(margin, 10, logoWidth, logoHeight, 3, 3, "FD");
+    doc.roundedRect(pageWidth - margin - logoWidth, 10, logoWidth, logoHeight, 3, 3, "FD");
+
+    if (logoSources && /^data:image\//.test(logoSources.jccm || "")) {
+      doc.addImage(logoSources.jccm, "PNG", margin + 2, 12, logoWidth - 4, logoHeight - 4, undefined, "FAST");
+    } else {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(31, 59, 90);
+      doc.text("Castilla-La Mancha", margin + logoWidth / 2, 20.8, { align: "center" });
+    }
+
+    if (logoSources && /^data:image\//.test(logoSources.gai || "")) {
+      doc.addImage(logoSources.gai, "PNG", pageWidth - margin - logoWidth + 2, 12, logoWidth - 4, logoHeight - 4, undefined, "FAST");
+    } else {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(31, 59, 90);
+      doc.text("GAI Ciudad Real", pageWidth - margin - logoWidth / 2, 20.8, { align: "center" });
+    }
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(18, 58, 90);
+    doc.text("Servicio de Salud de Castilla-La Mancha", pageWidth / 2, 17, { align: "center" });
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(82, 113, 141);
+    doc.text("Gerencia de Atencion Integrada de Ciudad Real", pageWidth / 2, 23, { align: "center" });
+
+    doc.setDrawColor(216, 228, 239);
+    doc.line(margin, 34, pageWidth - margin, 34);
+  }
+
+  function drawNativeTitleBlock(doc, context) {
+    const margin = 12;
+    const width = 186;
+    const y = 42;
+    const cutoff = context.latestCutoff == null ? "Fecha de corte no disponible" : formatLongDate(context.latestCutoff);
+
+    doc.setFillColor(18, 58, 90);
+    doc.setDrawColor(18, 58, 90);
+    doc.roundedRect(margin, y, width, 30, 4, 4, "FD");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(21);
+    doc.setTextColor(255, 255, 255);
+    doc.text("Informe sobre accesibilidad", margin + 8, y + 12);
+    doc.setFontSize(10);
+    doc.text("Programa de analisis de las demoras en Atencion Primaria", margin + 8, y + 20);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    doc.setTextColor(224, 237, 247);
+    doc.text("Subdireccion de Enfermeria de Atencion Primaria · Gerencia de Atencion Integrada de Ciudad Real", margin + 8, y + 26);
+    doc.setFillColor(245, 250, 253);
+    doc.roundedRect(margin + width - 58, y + 7, 50, 10, 4, 4, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    doc.setTextColor(18, 58, 90);
+    doc.text(cutoff, margin + width - 33, y + 13.5, { align: "center" });
+  }
+
+  function drawNativeContextCards(doc, context, startY) {
+    const metrics = context.metrics;
+    const cards = [
+      ["Area", state.filters.area || "Todas las areas"],
+      ["Zona", context.zoneMeta.value],
+      ["Fecha de corte", context.latestCutoff == null ? "No disponible" : formatLongDate(context.latestCutoff)],
+      ["Agendas validas", metrics ? formatInteger(metrics.totalValid) : "--"]
+    ];
+
+    if (state.filters.centro) {
+      cards.splice(2, 0, ["Centro", state.filters.centro]);
+    }
+    if (state.filters.categoria) {
+      cards.splice(3, 0, ["Categoria", state.filters.categoria]);
+    }
+    if (state.filters.tipoVisita) {
+      cards.splice(4, 0, ["Tipo visita", state.filters.tipoVisita]);
+    }
+
+    const margin = 12;
+    const gap = 4;
+    const columns = 4;
+    const cardWidth = (186 - gap * (columns - 1)) / columns;
+    const cardHeight = 20;
+
+    cards.slice(0, 8).forEach((card, index) => {
+      const col = index % columns;
+      const row = Math.floor(index / columns);
+      const x = margin + col * (cardWidth + gap);
+      const y = startY + row * (cardHeight + gap);
+      doc.setFillColor(247, 251, 254);
+      doc.setDrawColor(224, 235, 243);
+      doc.roundedRect(x, y, cardWidth, cardHeight, 3, 3, "FD");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(6.7);
+      doc.setTextColor(106, 130, 152);
+      doc.text(String(card[0]).toUpperCase(), x + 3, y + 6);
+      doc.setFontSize(8.2);
+      doc.setTextColor(27, 51, 74);
+      doc.text(doc.splitTextToSize(String(card[1]), cardWidth - 6).slice(0, 2), x + 3, y + 12);
+    });
+  }
+
+  function drawNativeSummary(doc, context, startY) {
+    const summaryHtml = buildReportSummaryMarkup(context.filteredRows, context.metrics, context.latestCutoff);
+    const summaryText = htmlToPlainText(summaryHtml);
+    const lines = doc.splitTextToSize(summaryText, 176).slice(0, 12);
+    const boxHeight = Math.max(34, lines.length * 4.1 + 14);
+
+    doc.setFillColor(255, 255, 255);
+    doc.setDrawColor(223, 234, 242);
+    doc.roundedRect(12, startY, 186, boxHeight, 4, 4, "FD");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(18, 58, 90);
+    doc.text("Resumen ejecutivo", 18, startY + 8);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    doc.setTextColor(52, 77, 102);
+    doc.text(lines, 18, startY + 15, { lineHeightFactor: 1.25 });
+    return startY + boxHeight;
+  }
+
+  function drawNativeKpiGrid(doc, metrics, startY) {
+    const kpis = [
+      ["% 0-2 dias", formatPercent(metrics.pct0to2), "Acumulativo DGAP"],
+      ["% 0-3 dias", formatPercent(metrics.pct0to3), "Acumulativo DGAP"],
+      ["% 0-6 dias", formatPercent(metrics.pct0to6), "Acumulativo DGAP"],
+      ["% >=7 dias", formatPercent(metrics.pct7Plus), "Demora prolongada"],
+      ["Agendas", formatInteger(metrics.totalValid), "Base analizada"],
+      ["Media", formatDayMetric(metrics.mean), "Dias"],
+      ["Mediana", formatDayMetric(metrics.median), "Valor central"],
+      ["Max.", formatDayMetric(metrics.max), "Mayor demora"]
+    ];
+    const margin = 12;
+    const gap = 4;
+    const cardWidth = (186 - gap * 3) / 4;
+    const cardHeight = 28;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(18, 58, 90);
+    doc.text("Indicadores clave", margin, startY + 4);
+
+    kpis.forEach((kpi, index) => {
+      const col = index % 4;
+      const row = Math.floor(index / 4);
+      const x = margin + col * (cardWidth + gap);
+      const y = startY + 10 + row * (cardHeight + gap);
+      const isAlert = index === 3;
+      doc.setFillColor(isAlert ? 255 : 247, isAlert ? 243 : 251, isAlert ? 244 : 254);
+      doc.setDrawColor(isAlert ? 230 : 223, isAlert ? 190 : 234, isAlert ? 196 : 242);
+      doc.roundedRect(x, y, cardWidth, cardHeight, 3, 3, "FD");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(6.8);
+      doc.setTextColor(106, 130, 152);
+      doc.text(kpi[0].toUpperCase(), x + 3, y + 6);
+      doc.setFontSize(15);
+      doc.setTextColor(isAlert ? 173 : 18, isAlert ? 72 : 58, isAlert ? 82 : 90);
+      doc.text(kpi[1], x + 3, y + 16);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6.8);
+      doc.setTextColor(112, 136, 157);
+      doc.text(kpi[2], x + 3, y + 23);
+    });
+  }
+
+  function drawNativeDetailPage(doc, context) {
+    doc.addPage();
+    drawNativeSectionTitle(doc, "Detalle de accesibilidad", "Tablas calculadas sobre agendas validas del subconjunto filtrado");
+    const categoryRows = buildCategorySummaries(context.validRows);
+    const categoryVisitRows = buildCategoryVisitSummaries(context.validRows);
+    drawNativeTable(doc, "Detalle por categoria", 31, ["Categoria", "Agendas", "% 0-2", "% 0-3", "% 0-6", "% >=7 d", "Media", "Mediana", "Max."], categoryRows.map((row) => [
+      row.category,
+      formatInteger(row.totalValid),
+      formatPercent(row.pct0to2),
+      formatPercent(row.pct0to3),
+      formatPercent(row.pct0to6),
+      formatPercent(row.pct7Plus),
+      formatReportDelay(row.mean),
+      formatReportDelay(row.median),
+      formatReportDelay(row.max)
+    ]), {
+      0: { cellWidth: 42 },
+      1: { cellWidth: 18, halign: "right" },
+      2: { cellWidth: 18, halign: "right" },
+      3: { cellWidth: 18, halign: "right" },
+      4: { cellWidth: 18, halign: "right" },
+      5: { cellWidth: 18, halign: "right" },
+      6: { cellWidth: 18, halign: "right" },
+      7: { cellWidth: 18, halign: "right" },
+      8: { cellWidth: 18, halign: "right" }
+    });
+
+    const nextY = Math.max(86, (doc.lastAutoTable && doc.lastAutoTable.finalY ? doc.lastAutoTable.finalY + 12 : 88));
+    drawNativeTable(doc, "Detalle por categoria y tipo de visita", nextY, ["Categoria", "Tipo visita", "Agendas", "% 0-2", "% 0-3", "% 0-6", "% >=7 d", "Media", "Mediana", "Max."], categoryVisitRows.map((row) => [
+      row.category,
+      row.visitType,
+      formatInteger(row.totalValid),
+      formatPercent(row.pct0to2),
+      formatPercent(row.pct0to3),
+      formatPercent(row.pct0to6),
+      formatPercent(row.pct7Plus),
+      formatReportDelay(row.mean),
+      formatReportDelay(row.median),
+      formatReportDelay(row.max)
+    ]), {
+      0: { cellWidth: 28 },
+      1: { cellWidth: 38 },
+      2: { cellWidth: 15, halign: "right" },
+      3: { cellWidth: 15, halign: "right" },
+      4: { cellWidth: 15, halign: "right" },
+      5: { cellWidth: 15, halign: "right" },
+      6: { cellWidth: 15, halign: "right" },
+      7: { cellWidth: 15, halign: "right" },
+      8: { cellWidth: 15, halign: "right" },
+      9: { cellWidth: 15, halign: "right" }
+    });
+  }
+
+  function drawNativeProfessionalsPage(doc, context) {
+    doc.addPage();
+    drawNativeSectionTitle(doc, "Profesionales con mayor demora por categoria", "Top 5 por categoria profesional");
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.3);
+    doc.setTextColor(57, 85, 108);
+    doc.text(doc.splitTextToSize("Se muestran, para cada categoria profesional, los cinco profesionales con mayor demora media dentro del subconjunto filtrado. El ranking se ordena por demora media descendente y, en caso de empate, por % >=7 dias, demora maxima y agendas validas.", 186), 12, 31);
+
+    let y = 48;
+    buildWorstProfessionalsByCategory(context.validRows).forEach((block) => {
+      if (y > 238) {
+        doc.addPage();
+        y = 20;
+      }
+      doc.setFillColor(234, 246, 244);
+      doc.setDrawColor(205, 229, 225);
+      doc.roundedRect(12, y - 5, 186, 9, 2.5, 2.5, "FD");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(11, 109, 100);
+      doc.text(block.category, 16, y + 1);
+      drawNativeTable(doc, "", y + 8, ["Profesional", "Centro", "Agendas", "% 0-2", "% 0-3", "% 0-6", "% >=7 d", "Media", "Mediana", "Max."], block.professionals.map((row) => [
+        row.professional,
+        row.center,
+        formatInteger(row.totalValid),
+        formatPercent(row.pct0to2),
+        formatPercent(row.pct0to3),
+        formatPercent(row.pct0to6),
+        formatPercent(row.pct7Plus),
+        formatReportDelay(row.mean),
+        formatReportDelay(row.median),
+        formatReportDelay(row.max)
+      ]), {
+        0: { cellWidth: 43 },
+        1: { cellWidth: 32 },
+        2: { cellWidth: 14, halign: "right" },
+        3: { cellWidth: 15, halign: "right" },
+        4: { cellWidth: 15, halign: "right" },
+        5: { cellWidth: 15, halign: "right" },
+        6: { cellWidth: 15, halign: "right" },
+        7: { cellWidth: 15, halign: "right" },
+        8: { cellWidth: 15, halign: "right" },
+        9: { cellWidth: 12, halign: "right" }
+      }, 7.1);
+      y = (doc.lastAutoTable && doc.lastAutoTable.finalY ? doc.lastAutoTable.finalY : y + 38) + 12;
+    });
+  }
+
+  function drawNativeRankingsPage(doc, context) {
+    doc.addPage();
+    drawNativeSectionTitle(doc, "Rankings ejecutivos", "Visualizacion estable sin graficos canvas");
+    const centers = aggregateByField(context.validRows, "Centro")
+      .sort((left, right) => right.mean - left.mean || right.totalValid - left.totalValid)
+      .slice(0, 10);
+    const zones = aggregateByField(context.validRows, "Zona")
+      .sort((left, right) => right.mean - left.mean || right.totalValid - left.totalValid)
+      .slice(0, 10);
+    drawNativeRankingBars(doc, "Centros con mayor demora media", centers, 32);
+    drawNativeRankingBars(doc, "Zonas con mayor demora media", zones, 152);
+  }
+
+  function drawNativeMethodologyPage(doc) {
+    doc.addPage();
+    drawNativeSectionTitle(doc, "Metodologia y privacidad", "Criterios de calculo");
+    const paragraphs = [
+      "Los indicadores se calculan sobre agendas con valor numerico y no negativo en la columna Accesibilidad.",
+      "Los porcentajes 0-2 dias, 0-3 dias y 0-6 dias son indicadores acumulativos DGAP. Una agenda con Accesibilidad 2 cuenta en 0-2, 0-3 y 0-6.",
+      "% 7 o mas dias recoge las agendas con Accesibilidad igual o superior a 7 dias.",
+      "Las tablas por categoria, tipo de visita y profesional calculan porcentajes sobre el total valido de cada grupo, no sobre el total global.",
+      "El ranking de profesionales se ordena por demora media descendente; en empate, por % >=7 dias, demora maxima y agendas validas.",
+      "El fichero Excel se procesa localmente en el dispositivo. No se envian datos a servidores externos. El PDF se genera localmente en el navegador o en la WebView de Android."
+    ];
+    let y = 36;
+    paragraphs.forEach((paragraph, index) => {
+      doc.setFillColor(index === paragraphs.length - 1 ? 243 : 255, index === paragraphs.length - 1 ? 251 : 255, index === paragraphs.length - 1 ? 249 : 255);
+      doc.setDrawColor(223, 234, 242);
+      const lines = doc.splitTextToSize(paragraph, 174);
+      const height = Math.max(16, lines.length * 4.2 + 8);
+      doc.roundedRect(12, y, 186, height, 3, 3, "FD");
+      doc.setFont("helvetica", index === paragraphs.length - 1 ? "bold" : "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(52, 77, 102);
+      doc.text(lines, 18, y + 7, { lineHeightFactor: 1.25 });
+      y += height + 7;
+    });
+  }
+
+  function drawNativeSectionTitle(doc, title, subtitle) {
+    doc.setFillColor(255, 255, 255);
+    doc.setDrawColor(216, 228, 239);
+    doc.line(12, 24, 198, 24);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(17);
+    doc.setTextColor(18, 58, 90);
+    doc.text(title, 12, 17);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(82, 113, 141);
+    doc.text(subtitle, 12, 22);
+  }
+
+  function drawNativeTable(doc, title, startY, head, body, columnStyles, fontSize) {
+    if (title) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10.5);
+      doc.setTextColor(18, 58, 90);
+      doc.text(title, 12, startY - 4);
+    }
+
+    doc.autoTable({
+      startY,
+      head: [head],
+      body,
+      margin: { left: 12, right: 12, bottom: 18, top: 18 },
+      tableWidth: 186,
+      theme: "grid",
+      styles: {
+        font: "helvetica",
+        fontSize: fontSize || 7.5,
+        cellPadding: 1.4,
+        overflow: "linebreak",
+        valign: "middle",
+        lineColor: [226, 235, 242],
+        lineWidth: 0.15,
+        textColor: [42, 64, 86]
+      },
+      headStyles: {
+        fillColor: [237, 245, 251],
+        textColor: [27, 51, 74],
+        fontStyle: "bold",
+        halign: "left"
+      },
+      alternateRowStyles: {
+        fillColor: [248, 251, 253]
+      },
+      columnStyles,
+      didParseCell: (data) => {
+        if (data.section === "body" && data.column.index >= Math.max(1, head.length - 8)) {
+          data.cell.styles.halign = "right";
+        }
+        if (data.section === "body" && head[data.column.index] === "% >=7 d") {
+          data.cell.styles.textColor = [173, 72, 82];
+          data.cell.styles.fontStyle = "bold";
+        }
+      }
+    });
+  }
+
+  function drawNativeRankingBars(doc, title, rows, startY) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(18, 58, 90);
+    doc.text(title, 12, startY);
+    const maxValue = Math.max(1, ...rows.map((row) => row.mean));
+    let y = startY + 10;
+    rows.forEach((row) => {
+      const barWidth = (row.mean / maxValue) * 82;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(36, 61, 85);
+      doc.text(doc.splitTextToSize(row.label, 62).slice(0, 1), 12, y);
+      doc.setFillColor(232, 240, 246);
+      doc.roundedRect(78, y - 4, 82, 5, 2, 2, "F");
+      doc.setFillColor(row.mean >= 7 ? 213 : row.mean >= 4 ? 236 : 14, row.mean >= 7 ? 86 : row.mean >= 4 ? 179 : 157, row.mean >= 7 ? 99 : row.mean >= 4 ? 67 : 144);
+      doc.roundedRect(78, y - 4, Math.max(2, barWidth), 5, 2, 2, "F");
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(27, 51, 74);
+      doc.text(formatReportDelay(row.mean), 165, y, { align: "right" });
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(112, 136, 157);
+      doc.text("n=" + formatInteger(row.totalValid), 197, y, { align: "right" });
+      y += 10.5;
+    });
+  }
+
+  function drawNativeEmptyState(doc, y, message) {
+    doc.setFillColor(247, 251, 254);
+    doc.setDrawColor(223, 234, 242);
+    doc.roundedRect(12, y, 186, 34, 4, 4, "FD");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(82, 113, 141);
+    doc.text(message, 105, y + 19, { align: "center" });
+  }
+
+  function addNativePdfFooters(doc) {
+    const totalPages = doc.internal.getNumberOfPages();
+    for (let page = 1; page <= totalPages; page += 1) {
+      doc.setPage(page);
+      doc.setDrawColor(223, 234, 242);
+      doc.line(12, 282, 198, 282);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7);
+      doc.setTextColor(112, 136, 157);
+      doc.text("Programa de analisis de las demoras en Atencion Primaria", 12, 287);
+      doc.text("Gerencia de Atencion Integrada de Ciudad Real", 105, 287, { align: "center" });
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(27, 51, 74);
+      doc.text("Pagina " + page + " de " + totalPages, 198, 287, { align: "right" });
+    }
+  }
+
+  function attachAutoTablePlugin(jsPDF) {
+    if (!jsPDF || jsPDF.API.autoTable) {
+      return;
+    }
+
+    const pluginObject = window.jspdfAutoTable || window.jsPDFAutoTable;
+    if (pluginObject && typeof pluginObject.applyPlugin === "function") {
+      pluginObject.applyPlugin(jsPDF);
+      return;
+    }
+
+    if (typeof window.applyPlugin === "function") {
+      window.applyPlugin(jsPDF);
+      return;
+    }
+
+    if (typeof window.autoTable === "function") {
+      jsPDF.API.autoTable = function (options) {
+        return window.autoTable(this, options);
+      };
+    }
+  }
+
+  function htmlToPlainText(html) {
+    const container = document.createElement("div");
+    container.innerHTML = html;
+    return normalizeText(container.textContent).replace(/\s+/g, " ");
   }
 
   function buildPremiumReportPdfElement(logoSources) {
