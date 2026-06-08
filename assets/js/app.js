@@ -1517,6 +1517,71 @@
     });
   }
 
+  function buildWorstProfessionalsByCategory(validRows) {
+    const grouped = new Map();
+
+    validRows.forEach((row) => {
+      const category = getRecordCategory(row);
+      const professional = normalizeText(row["PROFESIONAL"]) || "Sin profesional informado";
+      const center = normalizeText(row["Centro"]) || "Sin centro";
+      const key = category + "\u001f" + professional;
+
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          category,
+          professional,
+          centers: new Set(),
+          rows: []
+        });
+      }
+
+      const group = grouped.get(key);
+      group.centers.add(center);
+      group.rows.push(row);
+    });
+
+    const professionalRows = Array.from(grouped.values()).map((group) => {
+      const metrics = calculateExecutiveMetrics(group.rows);
+      return Object.assign({}, group, metrics, {
+        center: summarizeTextList(uniqueSorted(Array.from(group.centers)), 2)
+      });
+    }).sort(compareProfessionalDelayPressure);
+
+    const byCategory = new Map();
+    professionalRows.forEach((row) => {
+      if (!byCategory.has(row.category)) {
+        byCategory.set(row.category, []);
+      }
+      byCategory.get(row.category).push(row);
+    });
+
+    return Array.from(byCategory.entries()).map(([category, professionals]) => ({
+      category,
+      professionals: professionals.slice(0, 5)
+    })).sort((left, right) => {
+      const worstLeft = left.professionals[0];
+      const worstRight = right.professionals[0];
+      if (!worstLeft || !worstRight) {
+        return !worstLeft ? 1 : -1;
+      }
+      return compareProfessionalDelayPressure(worstLeft, worstRight) ||
+        left.category.localeCompare(right.category, "es", { sensitivity: "base", numeric: true });
+    });
+  }
+
+  function compareProfessionalDelayPressure(left, right) {
+    return (
+      right.mean - left.mean ||
+      right.pct7Plus - left.pct7Plus ||
+      right.max - left.max ||
+      right.totalValid - left.totalValid ||
+      left.professional.localeCompare(right.professional, "es", {
+        sensitivity: "base",
+        numeric: true
+      })
+    );
+  }
+
   function getRecordCategory(row) {
     return (
       normalizeText(row["Categoría"]) ||
@@ -1867,7 +1932,9 @@
 
     let exportNode = null;
     try {
-      exportNode = buildReportPdfElement();
+      const logoSources = await resolvePdfLogoSources();
+      exportNode = buildPremiumReportPdfElement(logoSources);
+      document.body.insertBefore(exportNode, document.body.firstChild);
       document.body.classList.add("report-pdf-exporting");
       await waitForNextFrame();
 
@@ -1880,7 +1947,8 @@
           scale: 2,
           useCORS: true,
           backgroundColor: "#ffffff",
-          logging: false
+          logging: false,
+          windowWidth: 794
         },
         jsPDF: {
           unit: "mm",
@@ -1889,11 +1957,18 @@
         },
         pagebreak: {
           mode: ["css", "legacy"],
-          avoid: [".kpi-card", ".report-summary", ".report-table-card", ".chart-card--report"]
+          avoid: [
+            ".pdf-card",
+            ".pdf-kpi-card",
+            ".pdf-table-wrapper",
+            ".pdf-section-title",
+            ".pdf-context-card",
+            ".pdf-ranking-category-block"
+          ]
         }
       };
 
-      const worker = window.html2pdf().set(options).from(exportNode);
+      const worker = window.html2pdf().set(options).from(exportNode).toPdf();
       if (window.AndroidPdf && typeof window.AndroidPdf.saveReportPdf === "function") {
         const dataUri = await worker.outputPdf("datauristring");
         const base64 = String(dataUri || "").split(",")[1] || "";
@@ -1903,13 +1978,17 @@
         window.AndroidPdf.saveReportPdf(base64, filename);
         showPrintNotice("PDF generado localmente. Revise la carpeta Descargas del dispositivo.");
       } else {
-        await worker.save();
+        const pdfBlob = await worker.outputPdf("blob");
+        downloadBlob(pdfBlob, filename);
       }
     } catch (error) {
       console.error("Error al generar el PDF del informe:", error);
       showPrintNotice("No se ha podido generar el PDF. Use 'Descargar informe HTML' como alternativa.");
     } finally {
       document.body.classList.remove("report-pdf-exporting");
+      if (exportNode && exportNode.parentNode) {
+        exportNode.parentNode.removeChild(exportNode);
+      }
       refs.downloadReportPdfButton.textContent = originalText;
       refs.downloadReportPdfButton.disabled = !state.rows.length;
     }
@@ -2009,6 +2088,438 @@
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+  }
+
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.rel = "noopener";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  async function resolvePdfLogoSources() {
+    const configuredLogos = window.DEMORAS_PDF_LOGOS || {};
+    if (!configuredLogos.jccm && !configuredLogos.gai) {
+      return { jccm: "", gai: "" };
+    }
+
+    const [jccm, gai] = await Promise.all([
+      configuredLogos.jccm ? loadLocalImageIfAvailable(configuredLogos.jccm) : Promise.resolve(""),
+      configuredLogos.gai ? loadLocalImageIfAvailable(configuredLogos.gai) : Promise.resolve("")
+    ]);
+
+    return { jccm, gai };
+  }
+
+  function loadLocalImageIfAvailable(src) {
+    return new Promise((resolve) => {
+      const image = new Image();
+      const finish = (value) => {
+        image.onload = null;
+        image.onerror = null;
+        resolve(value);
+      };
+
+      image.onload = () => finish(src);
+      image.onerror = () => finish("");
+      image.src = src;
+    });
+  }
+
+  function buildPremiumReportPdfElement(logoSources) {
+    const filteredRows = getFilteredRows();
+    const validRows = filteredRows.filter((row) => row.__hasValidAcc);
+    const metrics = calculateExecutiveMetrics(validRows);
+    const latestCutoff = getLatestDateSortValue(filteredRows, "Fecha Corte");
+    const zoneMeta = getReportZoneMeta(filteredRows);
+    const root = document.createElement("section");
+
+    root.className = "pdf-export-root";
+    root.setAttribute("aria-label", "Informe PDF de accesibilidad");
+    root.innerHTML = buildPdfReportMarkup({
+      filteredRows,
+      validRows,
+      metrics,
+      latestCutoff,
+      zoneMeta,
+      logoSources: logoSources || {}
+    });
+
+    return root;
+  }
+
+  function buildPdfReportMarkup(context) {
+    const metrics = context.metrics;
+
+    if (!state.rows.length) {
+      return buildPdfPage([
+        buildPdfHeader(context.logoSources),
+        '<section class="pdf-empty-card">Cargue un archivo Excel para generar el informe PDF.</section>',
+        buildPdfFooter(1, 1)
+      ].join(""));
+    }
+
+    if (!metrics) {
+      return buildPdfPage([
+        buildPdfHeader(context.logoSources),
+        buildPdfTitleBlock(context),
+        '<section class="pdf-empty-card">No hay agendas validas con Accesibilidad numerica en el subconjunto filtrado.</section>',
+        buildPdfFooter(1, 1)
+      ].join(""));
+    }
+
+    const categoryRows = buildCategorySummaries(context.validRows);
+    const categoryVisitRows = buildCategoryVisitSummaries(context.validRows);
+    const professionalRankings = buildWorstProfessionalsByCategory(context.validRows);
+    const centerRows = aggregateByField(context.validRows, "Centro")
+      .sort((left, right) => right.mean - left.mean || right.totalValid - left.totalValid)
+      .slice(0, 8);
+    const zoneRows = aggregateByField(context.validRows, "Zona")
+      .sort((left, right) => right.mean - left.mean || right.totalValid - left.totalValid)
+      .slice(0, 8);
+    const delayBands = buildExecutiveDelayBands(context.validRows);
+    const pageCount = 5;
+
+    return [
+      buildPdfPage([
+        buildPdfHeader(context.logoSources),
+        buildPdfTitleBlock(context),
+        buildPdfContextGrid(context),
+        buildPdfSummary(context),
+        buildPdfKpiGrid(metrics),
+        buildPdfFooter(1, pageCount)
+      ].join("")),
+      buildPdfPage([
+        buildPdfSectionTitle("Detalle de accesibilidad", "Analisis desagregado segun los filtros activos"),
+        buildPdfCategoryTable(categoryRows),
+        buildPdfCategoryVisitTable(categoryVisitRows),
+        buildPdfFooter(2, pageCount)
+      ].join(""), true),
+      buildPdfPage([
+        buildPdfSectionTitle("Profesionales con mayor demora por categoria", "Top 5 por categoria profesional"),
+        '<p class="pdf-section-intro">Se muestran, para cada categoria profesional, los cinco profesionales con mayor demora media dentro del subconjunto filtrado. El ranking se ordena de mayor a menor demora media, utilizando como criterios secundarios el porcentaje de agendas con 7 o mas dias, la demora maxima y el numero de agendas validas.</p>',
+        buildPdfProfessionalRanking(professionalRankings),
+        buildPdfFooter(3, pageCount)
+      ].join(""), true),
+      buildPdfPage([
+        buildPdfSectionTitle("Visualizacion ejecutiva", "Tablas y barras estables para A4"),
+        buildPdfDelayBandBars(delayBands),
+        buildPdfRankingTable("Centros por demora media", centerRows),
+        buildPdfRankingTable("Zonas por demora media", zoneRows),
+        buildPdfFooter(4, pageCount)
+      ].join(""), true),
+      buildPdfPage([
+        buildPdfSectionTitle("Metodologia y privacidad", "Criterios de calculo"),
+        buildPdfMethodology(),
+        buildPdfFooter(5, pageCount)
+      ].join(""), true)
+    ].join("");
+  }
+
+  function buildPdfPage(content, forceBreak) {
+    return '<article class="pdf-page' + (forceBreak ? " pdf-page-break" : "") + '">' + content + "</article>";
+  }
+
+  function buildPdfHeader(logoSources) {
+    const leftLogo = logoSources && logoSources.jccm
+      ? '<img src="' + escapeHtml(logoSources.jccm) + '" alt="Castilla-La Mancha">'
+      : '<span>Castilla-La Mancha</span>';
+    const rightLogo = logoSources && logoSources.gai
+      ? '<img src="' + escapeHtml(logoSources.gai) + '" alt="Gerencia de Atencion Integrada de Ciudad Real">'
+      : '<span>GAI Ciudad Real</span>';
+
+    return (
+      '<header class="pdf-header">' +
+      '<div class="pdf-logo-row">' +
+      '<div class="pdf-logo-box pdf-logo-box--left">' +
+      leftLogo +
+      "</div>" +
+      '<div class="pdf-institution-copy">' +
+      "<strong>Servicio de Salud de Castilla-La Mancha</strong>" +
+      "<span>Gerencia de Atencion Integrada de Ciudad Real</span>" +
+      "</div>" +
+      '<div class="pdf-logo-box pdf-logo-box--right">' +
+      rightLogo +
+      "</div>" +
+      "</div>" +
+      "</header>"
+    );
+  }
+
+  function buildPdfTitleBlock(context) {
+    const cutoffText = context.latestCutoff == null ? "Fecha de corte no disponible" : formatLongDate(context.latestCutoff);
+    return (
+      '<section class="pdf-title-block">' +
+      '<p class="pdf-kicker">Informe institucional</p>' +
+      "<h1>Informe sobre accesibilidad</h1>" +
+      "<h2>Programa de analisis de las demoras en Atencion Primaria</h2>" +
+      "<p>Subdireccion de Enfermeria de Atencion Primaria</p>" +
+      '<span class="pdf-cutoff-pill">Fecha de corte: ' + escapeHtml(cutoffText) + "</span>" +
+      "</section>"
+    );
+  }
+
+  function buildPdfContextGrid(context) {
+    const cards = [
+      ["Area", state.filters.area || "Todas las areas"],
+      ["Zona Basica de Salud", context.zoneMeta.value + (context.zoneMeta.detail ? ". " + context.zoneMeta.detail : "")],
+      ["Fecha de corte", context.latestCutoff == null ? "No disponible" : formatLongDate(context.latestCutoff)],
+      ["Agendas validas analizadas", formatInteger(context.metrics.totalValid)]
+    ];
+
+    if (state.filters.centro) {
+      cards.splice(2, 0, ["Centro", state.filters.centro]);
+    }
+    if (state.filters.categoria) {
+      cards.splice(3, 0, ["Categoria", state.filters.categoria]);
+    }
+    if (state.filters.tipoVisita) {
+      cards.splice(4, 0, ["Tipo de visita", state.filters.tipoVisita]);
+    }
+
+    return (
+      '<section class="pdf-context-grid">' +
+      cards.map((card) =>
+        '<article class="pdf-context-card">' +
+        "<span>" + escapeHtml(card[0]) + "</span>" +
+        "<strong>" + escapeHtml(card[1]) + "</strong>" +
+        "</article>"
+      ).join("") +
+      "</section>"
+    );
+  }
+
+  function buildPdfSummary(context) {
+    return (
+      '<section class="pdf-summary-card pdf-card">' +
+      "<h3>Resumen ejecutivo</h3>" +
+      '<div class="pdf-summary-copy">' +
+      buildReportSummaryMarkup(context.filteredRows, context.metrics, context.latestCutoff) +
+      "</div>" +
+      "</section>"
+    );
+  }
+
+  function buildPdfKpiGrid(metrics) {
+    const kpis = [
+      ["% 0-2 dias", formatPercent(metrics.pct0to2), "Indicador acumulativo DGAP"],
+      ["% 0-3 dias", formatPercent(metrics.pct0to3), "Indicador acumulativo DGAP"],
+      ["% 0-6 dias", formatPercent(metrics.pct0to6), "Indicador acumulativo DGAP"],
+      ["% 7 o mas dias", formatPercent(metrics.pct7Plus), "Accesibilidad >= 7 dias", "alert"],
+      ["Agendas validas", formatInteger(metrics.totalValid), "Base del informe"],
+      ["Demora media", formatDayMetric(metrics.mean), "Dias de Accesibilidad"],
+      ["Demora mediana", formatDayMetric(metrics.median), "Valor central"],
+      ["Demora maxima", formatDayMetric(metrics.max), "Mayor demora detectada"]
+    ];
+
+    return (
+      '<section class="pdf-kpi-grid">' +
+      kpis.map((kpi) =>
+        '<article class="pdf-kpi-card' + (kpi[3] ? " pdf-kpi-card--" + kpi[3] : "") + '">' +
+        "<span>" + escapeHtml(kpi[0]) + "</span>" +
+        "<strong>" + escapeHtml(kpi[1]) + "</strong>" +
+        "<small>" + escapeHtml(kpi[2]) + "</small>" +
+        "</article>"
+      ).join("") +
+      "</section>"
+    );
+  }
+
+  function buildPdfSectionTitle(title, subtitle) {
+    return (
+      '<header class="pdf-section-title">' +
+      '<p class="pdf-kicker">' + escapeHtml(subtitle) + "</p>" +
+      "<h2>" + escapeHtml(title) + "</h2>" +
+      "</header>"
+    );
+  }
+
+  function buildPdfCategoryTable(rows) {
+    return buildPdfTableCard(
+      "Detalle por categoria",
+      "Agrupacion por categoria profesional",
+      ["Categoria", "Agendas", "% 0-2", "% 0-3", "% 0-6", "% >=7", "Media", "Mediana", "Max."],
+      rows,
+      (row) => [
+        row.category,
+        formatInteger(row.totalValid),
+        formatPercent(row.pct0to2),
+        formatPercent(row.pct0to3),
+        formatPercent(row.pct0to6),
+        formatPercent(row.pct7Plus),
+        formatReportDelay(row.mean),
+        formatReportDelay(row.median),
+        formatReportDelay(row.max)
+      ],
+      "pdf-table--category"
+    );
+  }
+
+  function buildPdfCategoryVisitTable(rows) {
+    return buildPdfTableCard(
+      "Detalle por categoria y tipo de visita",
+      "Agrupacion por categoria y tipo de agenda",
+      ["Categoria", "Tipo visita", "Agendas", "% 0-2", "% 0-3", "% 0-6", "% >=7", "Media", "Mediana", "Max."],
+      rows,
+      (row) => [
+        row.category,
+        row.visitType,
+        formatInteger(row.totalValid),
+        formatPercent(row.pct0to2),
+        formatPercent(row.pct0to3),
+        formatPercent(row.pct0to6),
+        formatPercent(row.pct7Plus),
+        formatReportDelay(row.mean),
+        formatReportDelay(row.median),
+        formatReportDelay(row.max)
+      ],
+      "pdf-table--category-visit"
+    );
+  }
+
+  function buildPdfTableCard(title, subtitle, headers, rows, rowMapper, tableClass) {
+    if (!rows.length) {
+      return (
+        '<section class="pdf-table-wrapper pdf-card">' +
+        "<h3>" + escapeHtml(title) + "</h3>" +
+        '<p class="pdf-muted">' + escapeHtml(subtitle) + "</p>" +
+        '<div class="pdf-empty-card">No hay datos validos para esta tabla.</div>' +
+        "</section>"
+      );
+    }
+
+    const numericStart = getPdfNumericStart(headers);
+
+    return (
+      '<section class="pdf-table-wrapper pdf-card">' +
+      "<h3>" + escapeHtml(title) + "</h3>" +
+      '<p class="pdf-muted">' + escapeHtml(subtitle) + "</p>" +
+      '<table class="pdf-table ' + tableClass + '">' +
+      "<thead><tr>" +
+      headers.map((header, index) => '<th class="' + (index >= numericStart ? "num" : "") + '">' + escapeHtml(header) + "</th>").join("") +
+      "</tr></thead>" +
+      "<tbody>" +
+      rows.map((row) => {
+        const cells = rowMapper(row);
+        return "<tr>" + cells.map((cell, index) =>
+          '<td class="' + (index >= numericStart ? "num" : "") + (headers[index] === "% >=7" ? " signal" : "") + '">' + escapeHtml(cell) + "</td>"
+        ).join("") + "</tr>";
+      }).join("") +
+      "</tbody></table></section>"
+    );
+  }
+
+  function getPdfNumericStart(headers) {
+    if (headers[0] === "Categoria" && headers[1] === "Tipo visita") {
+      return 2;
+    }
+    if (headers[0] === "Categoria" || headers[0] === "Nombre") {
+      return 1;
+    }
+    return 0;
+  }
+
+  function buildPdfProfessionalRanking(rankings) {
+    if (!rankings.length) {
+      return '<section class="pdf-empty-card">No hay profesionales con agendas validas para generar este ranking.</section>';
+    }
+
+    return (
+      '<section class="pdf-professional-ranking">' +
+      rankings.map((categoryBlock) =>
+        '<article class="pdf-ranking-category-block pdf-card">' +
+        "<h3>" + escapeHtml(categoryBlock.category) + "</h3>" +
+        '<table class="pdf-table pdf-table--professionals">' +
+        "<thead><tr>" +
+        ["Profesional", "Centro", "Agendas", "% 0-2", "% 0-3", "% 0-6", "% >=7", "Media", "Mediana", "Max."].map((header, index) =>
+          '<th class="' + (index >= 2 ? "num" : "") + '">' + escapeHtml(header) + "</th>"
+        ).join("") +
+        "</tr></thead><tbody>" +
+        categoryBlock.professionals.map((row) =>
+          "<tr>" +
+          "<td>" + escapeHtml(row.professional) + "</td>" +
+          "<td>" + escapeHtml(row.center) + "</td>" +
+          '<td class="num">' + formatInteger(row.totalValid) + "</td>" +
+          '<td class="num">' + formatPercent(row.pct0to2) + "</td>" +
+          '<td class="num">' + formatPercent(row.pct0to3) + "</td>" +
+          '<td class="num">' + formatPercent(row.pct0to6) + "</td>" +
+          '<td class="num signal">' + formatPercent(row.pct7Plus) + "</td>" +
+          '<td class="num strong">' + formatReportDelay(row.mean) + "</td>" +
+          '<td class="num">' + formatReportDelay(row.median) + "</td>" +
+          '<td class="num">' + formatReportDelay(row.max) + "</td>" +
+          "</tr>"
+        ).join("") +
+        "</tbody></table></article>"
+      ).join("") +
+      "</section>"
+    );
+  }
+
+  function buildPdfDelayBandBars(delayBands) {
+    return (
+      '<section class="pdf-card pdf-bars-card">' +
+      "<h3>Distribucion por tramos excluyentes</h3>" +
+      '<p class="pdf-muted">Los KPI 0-2, 0-3 y 0-6 son acumulativos; esta visualizacion usa tramos excluyentes.</p>' +
+      delayBands.map((band) =>
+        '<div class="pdf-bar-row">' +
+        '<span class="pdf-bar-label">' + escapeHtml(band.label) + "</span>" +
+        '<div class="pdf-bar-track"><span style="width:' + Math.max(2, band.share).toFixed(1) + "%;background:" + band.color + '"></span></div>' +
+        "<strong>" + formatInteger(band.count) + " (" + formatPercent(band.share) + ")</strong>" +
+        "</div>"
+      ).join("") +
+      "</section>"
+    );
+  }
+
+  function buildPdfRankingTable(title, rows) {
+    return buildPdfTableCard(
+      title,
+      "Ordenado por demora media descendente",
+      ["Nombre", "Agendas", "% >=7", "Media", "Mediana", "Max."],
+      rows,
+      (row) => [
+        row.label,
+        formatInteger(row.totalValid),
+        formatPercent(row.pct7Plus),
+        formatReportDelay(row.mean),
+        formatReportDelay(row.median),
+        formatReportDelay(row.max)
+      ],
+      "pdf-table--ranking"
+    );
+  }
+
+  function buildPdfMethodology() {
+    return (
+      '<section class="pdf-card pdf-methodology-card">' +
+      "<h3>Criterios de calculo</h3>" +
+      "<ul>" +
+      "<li>Los indicadores se calculan sobre agendas con valor numerico y no negativo en la columna Accesibilidad.</li>" +
+      "<li>% 0-2 dias, % 0-3 dias y % 0-6 dias son indicadores acumulativos DGAP.</li>" +
+      "<li>% 7 o mas dias recoge las agendas con Accesibilidad igual o superior a 7 dias.</li>" +
+      "<li>Las tablas por grupo calculan porcentajes sobre el total valido de cada grupo.</li>" +
+      "<li>El ranking de profesionales se ordena por demora media descendente; en empate, por % >=7 dias, demora maxima y agendas validas.</li>" +
+      "</ul>" +
+      "<h3>Privacidad</h3>" +
+      '<p>El fichero Excel se procesa localmente en el dispositivo. No se envian datos a servidores externos. El PDF se genera localmente en el navegador o en la WebView de Android.</p>' +
+      '<p class="pdf-muted">Fecha de generacion: ' + escapeHtml(formatLongDate(new Date())) + ".</p>" +
+      "</section>"
+    );
+  }
+
+  function buildPdfFooter(pageNumber, pageCount) {
+    return (
+      '<footer class="pdf-footer">' +
+      "<span>Programa de analisis de las demoras en Atencion Primaria</span>" +
+      "<span>Gerencia de Atencion Integrada de Ciudad Real</span>" +
+      "<strong>Pagina " + pageNumber + " de " + pageCount + "</strong>" +
+      "</footer>"
+    );
   }
 
   function buildReportPdfElement() {
@@ -2363,6 +2874,10 @@
   function formatDayMetric(value) {
     const decimals = Math.abs(value - Math.round(value)) < 0.01 ? 0 : 1;
     return formatNumber(value, decimals) + " d";
+  }
+
+  function formatReportDelay(value) {
+    return formatNumber(value, 1) + " d";
   }
 
   function formatDaysText(value) {
