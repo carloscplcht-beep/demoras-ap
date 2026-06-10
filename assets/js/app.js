@@ -205,9 +205,7 @@
     zoneMapEmptyState: document.getElementById("zoneMapEmptyState"),
     zoneMapMissing: document.getElementById("zoneMapMissing"),
     zoneMapMissingList: document.getElementById("zoneMapMissingList"),
-    downloadReportPdfButton: document.getElementById("downloadReportPdfButton"),
     printReportButton: document.getElementById("printReportButton"),
-    downloadPrintableReportButton: document.getElementById("downloadPrintableReportButton"),
     reportPrintNotice: document.getElementById("reportPrintNotice"),
     reportScope: document.getElementById("reportScope"),
     reportArea: document.getElementById("reportArea"),
@@ -253,9 +251,7 @@
     refs.fileInput.addEventListener("change", handleFileSelection);
     refs.resetFiltersButton.addEventListener("click", resetFilters);
     refs.exportCsvButton.addEventListener("click", exportFilteredTable);
-    refs.downloadReportPdfButton.addEventListener("click", handleDownloadReportPdf);
     refs.printReportButton.addEventListener("click", handlePrintReport);
-    refs.downloadPrintableReportButton.addEventListener("click", handleDownloadPrintableReport);
     refs.tableSearchInput.addEventListener("input", handleTableSearch);
     refs.pageSizeSelect.addEventListener("change", handlePageSizeChange);
     refs.prevPageButton.addEventListener("click", () => changePage(-1));
@@ -699,9 +695,7 @@
     refs.pageSizeSelect.disabled = !hasRows;
     refs.resetFiltersButton.disabled = !hasRows;
     refs.exportCsvButton.disabled = !tableRows.length;
-    refs.downloadReportPdfButton.disabled = !hasRows;
     refs.printReportButton.disabled = !hasRows;
-    refs.downloadPrintableReportButton.disabled = !hasRows;
     refs.prevPageButton.disabled = !hasRows || state.currentPage <= 1;
     refs.nextPageButton.disabled = !hasRows || state.currentPage >= getTotalPages(tableRows.length);
   }
@@ -1569,6 +1563,58 @@
     });
   }
 
+  function buildProfessionalsWithDelayOver7(validRows) {
+    const grouped = new Map();
+
+    validRows.forEach((row) => {
+      const category = getRecordCategory(row);
+      const professional = normalizeText(row["PROFESIONAL"]);
+      const cias = normalizeText(row["CIAS"]);
+
+      if (!professional && !cias) {
+        return;
+      }
+
+      const key = [category, professional || "Sin profesional", cias || "Sin CIAS"].join("\u001f");
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          category,
+          professional: professional || "CIAS " + cias,
+          centers: new Set(),
+          zones: new Set(),
+          rows: []
+        });
+      }
+
+      const group = grouped.get(key);
+      group.centers.add(normalizeText(row["Centro"]) || "Sin centro");
+      group.zones.add(normalizeText(row["Zona"]) || "Sin zona");
+      group.rows.push(row);
+    });
+
+    return Array.from(grouped.values()).map((group) => {
+      const metrics = calculateExecutiveMetrics(group.rows);
+      return {
+        category: group.category,
+        professional: group.professional,
+        center: summarizeTextList(uniqueSorted(Array.from(group.centers)), 2),
+        zone: summarizeTextList(uniqueSorted(Array.from(group.zones)), 2),
+        totalValid: metrics.totalValid,
+        mean: metrics.mean,
+        median: metrics.median,
+        max: metrics.max,
+        pct7Plus: metrics.pct7Plus
+      };
+    }).filter((row) => row.totalValid > 0 && row.mean >= 7)
+      .sort((left, right) => (
+        right.mean - left.mean ||
+        right.max - left.max ||
+        right.pct7Plus - left.pct7Plus ||
+        right.totalValid - left.totalValid ||
+        left.professional.localeCompare(right.professional, "es", { sensitivity: "base", numeric: true })
+      ));
+  }
+
   function compareProfessionalDelayPressure(left, right) {
     return (
       right.mean - left.mean ||
@@ -1908,13 +1954,13 @@
     renderAll();
   }
 
-  async function handleDownloadReportPdf(event) {
+  async function handlePrintReport(event) {
     if (event) {
       event.preventDefault();
       event.stopPropagation();
     }
 
-    if (!state.rows.length || refs.downloadReportPdfButton.disabled) {
+    if (!state.rows.length || refs.printReportButton.disabled) {
       return;
     }
 
@@ -1922,13 +1968,13 @@
     setActiveTab("report");
 
     if (!window.jspdf || typeof window.jspdf.jsPDF !== "function") {
-      showPrintNotice("No se ha podido cargar el generador local de PDF. Use 'Descargar informe HTML' como alternativa.");
+      showPrintNotice("No se ha podido cargar el generador local de PDF.");
       return;
     }
 
-    const originalText = refs.downloadReportPdfButton.textContent;
-    refs.downloadReportPdfButton.disabled = true;
-    refs.downloadReportPdfButton.textContent = "Generando PDF...";
+    const originalText = refs.printReportButton.textContent;
+    refs.printReportButton.disabled = true;
+    refs.printReportButton.textContent = "Generando PDF...";
 
     try {
       const logoSources = await resolvePdfLogoSources();
@@ -1949,107 +1995,11 @@
       }
     } catch (error) {
       console.error("Error al generar el PDF del informe:", error);
-      showPrintNotice("No se ha podido generar el PDF. Use 'Descargar informe HTML' como alternativa.");
+      showPrintNotice("No se ha podido generar el PDF local. Revise el archivo cargado e intentelo de nuevo.");
     } finally {
-      refs.downloadReportPdfButton.textContent = originalText;
-      refs.downloadReportPdfButton.disabled = !state.rows.length;
+      refs.printReportButton.textContent = originalText;
+      refs.printReportButton.disabled = !state.rows.length;
     }
-  }
-
-  function handlePrintReport(event) {
-    if (event) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-
-    hidePrintNotice();
-    setActiveTab("report");
-
-    const reportHtml = buildPrintableReportHtml();
-    if (!reportHtml) {
-      showPrintNotice("No se encontró la vista de informe para imprimir.");
-      return;
-    }
-
-    if (window.AndroidPrint && typeof window.AndroidPrint.printReport === "function") {
-      try {
-        window.AndroidPrint.printReport(reportHtml);
-        return;
-      } catch (error) {
-        console.warn("No se pudo usar el puente nativo AndroidPrint.", error);
-      }
-    }
-
-    const printFn = window.print || globalThis.print;
-    if (typeof printFn === "function") {
-      printFn.call(window);
-      if (isAndroidPrintConstrainedEnvironment()) {
-        showPrintNotice("En esta versión Android, la impresión directa puede no estar soportada. Use 'Abrir informe imprimible' y después la opción compartir/imprimir del sistema.");
-      }
-      return;
-    }
-
-    showPrintNotice("La impresión no está disponible en este navegador. Use 'Abrir informe imprimible' o 'Descargar informe HTML'.");
-  }
-
-  function handleOpenPrintableReport(event) {
-    if (event) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-
-    hidePrintNotice();
-    setActiveTab("report");
-    openPrintableReportFallback();
-  }
-
-  function handleDownloadPrintableReport(event) {
-    if (event) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-
-    hidePrintNotice();
-    setActiveTab("report");
-    downloadPrintableReportHtml();
-  }
-
-  function openPrintableReportFallback() {
-    const reportHtml = buildPrintableReportHtml();
-    if (!reportHtml) {
-      showPrintNotice("No hay informe disponible para abrir.");
-      return;
-    }
-
-    const reportWindow = window.open("", "_blank");
-    if (reportWindow && reportWindow.document) {
-      reportWindow.document.open();
-      reportWindow.document.write(reportHtml);
-      reportWindow.document.close();
-      reportWindow.focus();
-      return;
-    }
-
-    showInternalPrintablePreview(reportHtml);
-    showPrintNotice("No se ha podido abrir una nueva ventana. Se muestra una vista imprimible dentro de la aplicación.");
-  }
-
-  function downloadPrintableReportHtml() {
-    const reportHtml = buildPrintableReportHtml();
-    if (!reportHtml) {
-      showPrintNotice("No hay informe disponible para descargar.");
-      return;
-    }
-
-    const blob = new Blob([reportHtml], { type: "text/html;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = buildExportFileName("informe_accesibilidad", "html");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
   }
 
   function downloadBlob(blob, filename) {
@@ -2065,10 +2015,10 @@
   }
 
   async function resolvePdfLogoSources() {
-    const configuredLogos = window.DEMORAS_PDF_LOGOS || {};
-    if (!configuredLogos.jccm && !configuredLogos.gai) {
-      return { jccm: "", gai: "" };
-    }
+    const configuredLogos = Object.assign({
+      jccm: "assets/img/sescam.jpg",
+      gai: "assets/img/gai-cr.jpg"
+    }, window.DEMORAS_PDF_LOGOS || {});
 
     const [jccm, gai] = await Promise.all([
       configuredLogos.jccm ? loadLocalImageIfAvailable(configuredLogos.jccm) : Promise.resolve(""),
@@ -2094,7 +2044,11 @@
           canvas.height = image.naturalHeight || image.height;
           const context = canvas.getContext("2d");
           context.drawImage(image, 0, 0);
-          finish(canvas.toDataURL("image/png"));
+          finish({
+            dataUrl: canvas.toDataURL("image/png"),
+            width: canvas.width,
+            height: canvas.height
+          });
         } catch (error) {
           finish("");
         }
@@ -2146,6 +2100,7 @@
       drawNativeDetailPage(doc, context);
       drawNativeProfessionalsPage(doc, context);
       drawNativeRankingsPage(doc, context);
+      drawNativeProfessionalsOver7Page(doc, context);
       drawNativeMethodologyPage(doc);
     }
 
@@ -2177,16 +2132,16 @@
   function drawNativeHeader(doc, logoSources) {
     const margin = 12;
     const pageWidth = 210;
-    const logoWidth = 50;
-    const logoHeight = 18;
+    const logoWidth = 56;
+    const logoHeight = 16;
 
     doc.setDrawColor(220, 232, 242);
     doc.setFillColor(255, 255, 255);
     doc.roundedRect(margin, 10, logoWidth, logoHeight, 3, 3, "FD");
     doc.roundedRect(pageWidth - margin - logoWidth, 10, logoWidth, logoHeight, 3, 3, "FD");
 
-    if (logoSources && /^data:image\//.test(logoSources.jccm || "")) {
-      doc.addImage(logoSources.jccm, "PNG", margin + 2, 12, logoWidth - 4, logoHeight - 4, undefined, "FAST");
+    if (isPdfLogoReady(logoSources && logoSources.jccm)) {
+      drawPdfImageContain(doc, logoSources.jccm, margin + 2, 12, logoWidth - 4, logoHeight - 4);
     } else {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(9);
@@ -2194,8 +2149,8 @@
       doc.text("Castilla-La Mancha", margin + logoWidth / 2, 20.8, { align: "center" });
     }
 
-    if (logoSources && /^data:image\//.test(logoSources.gai || "")) {
-      doc.addImage(logoSources.gai, "PNG", pageWidth - margin - logoWidth + 2, 12, logoWidth - 4, logoHeight - 4, undefined, "FAST");
+    if (isPdfLogoReady(logoSources && logoSources.gai)) {
+      drawPdfImageContain(doc, logoSources.gai, pageWidth - margin - logoWidth + 2, 12, logoWidth - 4, logoHeight - 4);
     } else {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(9);
@@ -2214,6 +2169,21 @@
 
     doc.setDrawColor(216, 228, 239);
     doc.line(margin, 34, pageWidth - margin, 34);
+  }
+
+  function isPdfLogoReady(logo) {
+    return Boolean(logo && /^data:image\//.test(logo.dataUrl || ""));
+  }
+
+  function drawPdfImageContain(doc, logo, x, y, maxWidth, maxHeight) {
+    const sourceWidth = Math.max(1, Number(logo.width) || maxWidth);
+    const sourceHeight = Math.max(1, Number(logo.height) || maxHeight);
+    const scale = Math.min(maxWidth / sourceWidth, maxHeight / sourceHeight);
+    const width = sourceWidth * scale;
+    const height = sourceHeight * scale;
+    const offsetX = x + (maxWidth - width) / 2;
+    const offsetY = y + (maxHeight - height) / 2;
+    doc.addImage(logo.dataUrl, "PNG", offsetX, offsetY, width, height, undefined, "FAST");
   }
 
   function drawNativeTitleBlock(doc, context) {
@@ -2464,6 +2434,43 @@
     drawNativeRankingBars(doc, "Zonas con mayor demora media", zones, 152);
   }
 
+  function drawNativeProfessionalsOver7Page(doc, context) {
+    doc.addPage();
+    drawNativeSectionTitle(doc, "Profesionales con demora media de 7 o mas dias", "Tabla operativa calculada sobre el subconjunto filtrado");
+    const rows = buildProfessionalsWithDelayOver7(context.validRows);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.3);
+    doc.setTextColor(57, 85, 108);
+    doc.text(doc.splitTextToSize("Se incluyen exclusivamente profesionales con demora media igual o superior a 7 dias. El orden prioriza mayor demora media, mayor demora maxima, mayor porcentaje de agendas con 7 o mas dias y mayor numero de agendas validas.", 186), 12, 31);
+
+    if (!rows.length) {
+      drawNativeEmptyState(doc, 54, "No se identifican profesionales con demora media igual o superior a 7 dias en el subconjunto filtrado.");
+      return;
+    }
+
+    drawNativeTable(doc, "", 54, ["Categoria", "Profesional", "Centro", "Zona", "Agendas", "Media", "Mediana", "Max.", "% >=7 d"], rows.map((row) => [
+      row.category,
+      row.professional,
+      row.center,
+      row.zone,
+      formatInteger(row.totalValid),
+      formatReportDelay(row.mean),
+      formatReportDelay(row.median),
+      formatReportDelay(row.max),
+      formatPercent(row.pct7Plus)
+    ]), {
+      0: { cellWidth: 24 },
+      1: { cellWidth: 42 },
+      2: { cellWidth: 32 },
+      3: { cellWidth: 25 },
+      4: { cellWidth: 14, halign: "right" },
+      5: { cellWidth: 14, halign: "right" },
+      6: { cellWidth: 14, halign: "right" },
+      7: { cellWidth: 11, halign: "right" },
+      8: { cellWidth: 10, halign: "right" }
+    }, 6.8);
+  }
+
   function drawNativeMethodologyPage(doc) {
     doc.addPage();
     drawNativeSectionTitle(doc, "Metodologia y privacidad", "Criterios de calculo");
@@ -2546,6 +2553,12 @@
         if (data.section === "body" && head[data.column.index] === "% >=7 d") {
           data.cell.styles.textColor = [173, 72, 82];
           data.cell.styles.fontStyle = "bold";
+        }
+        if (data.section === "body" && head[data.column.index] === "Media") {
+          const numericValue = Number(String(data.cell.raw || "").replace(",", ".").replace(/[^\d.-]/g, ""));
+          data.cell.styles.fontStyle = "bold";
+          data.cell.styles.textColor = numericValue >= 10 ? [173, 72, 82] : [18, 58, 90];
+          data.cell.styles.fillColor = numericValue >= 10 ? [255, 243, 244] : [239, 247, 252];
         }
       }
     });
@@ -2634,434 +2647,6 @@
     return normalizeText(container.textContent).replace(/\s+/g, " ");
   }
 
-  function buildPremiumReportPdfElement(logoSources) {
-    const filteredRows = getFilteredRows();
-    const validRows = filteredRows.filter((row) => row.__hasValidAcc);
-    const metrics = calculateExecutiveMetrics(validRows);
-    const latestCutoff = getLatestDateSortValue(filteredRows, "Fecha Corte");
-    const zoneMeta = getReportZoneMeta(filteredRows);
-    const root = document.createElement("section");
-
-    root.className = "pdf-export-root";
-    root.setAttribute("aria-label", "Informe PDF de accesibilidad");
-    root.innerHTML = buildPdfReportMarkup({
-      filteredRows,
-      validRows,
-      metrics,
-      latestCutoff,
-      zoneMeta,
-      logoSources: logoSources || {}
-    });
-
-    return root;
-  }
-
-  function buildPdfReportMarkup(context) {
-    const metrics = context.metrics;
-
-    if (!state.rows.length) {
-      return buildPdfPage([
-        buildPdfHeader(context.logoSources),
-        '<section class="pdf-empty-card">Cargue un archivo Excel para generar el informe PDF.</section>',
-        buildPdfFooter(1, 1)
-      ].join(""));
-    }
-
-    if (!metrics) {
-      return buildPdfPage([
-        buildPdfHeader(context.logoSources),
-        buildPdfTitleBlock(context),
-        '<section class="pdf-empty-card">No hay agendas validas con Accesibilidad numerica en el subconjunto filtrado.</section>',
-        buildPdfFooter(1, 1)
-      ].join(""));
-    }
-
-    const categoryRows = buildCategorySummaries(context.validRows);
-    const categoryVisitRows = buildCategoryVisitSummaries(context.validRows);
-    const professionalRankings = buildWorstProfessionalsByCategory(context.validRows);
-    const centerRows = aggregateByField(context.validRows, "Centro")
-      .sort((left, right) => right.mean - left.mean || right.totalValid - left.totalValid)
-      .slice(0, 8);
-    const zoneRows = aggregateByField(context.validRows, "Zona")
-      .sort((left, right) => right.mean - left.mean || right.totalValid - left.totalValid)
-      .slice(0, 8);
-    const delayBands = buildExecutiveDelayBands(context.validRows);
-    const pageCount = 5;
-
-    return [
-      buildPdfPage([
-        buildPdfHeader(context.logoSources),
-        buildPdfTitleBlock(context),
-        buildPdfContextGrid(context),
-        buildPdfSummary(context),
-        buildPdfKpiGrid(metrics),
-        buildPdfFooter(1, pageCount)
-      ].join("")),
-      buildPdfPage([
-        buildPdfSectionTitle("Detalle de accesibilidad", "Analisis desagregado segun los filtros activos"),
-        buildPdfCategoryTable(categoryRows),
-        buildPdfCategoryVisitTable(categoryVisitRows),
-        buildPdfFooter(2, pageCount)
-      ].join(""), true),
-      buildPdfPage([
-        buildPdfSectionTitle("Profesionales con mayor demora por categoria", "Top 5 por categoria profesional"),
-        '<p class="pdf-section-intro">Se muestran, para cada categoria profesional, los cinco profesionales con mayor demora media dentro del subconjunto filtrado. El ranking se ordena de mayor a menor demora media, utilizando como criterios secundarios el porcentaje de agendas con 7 o mas dias, la demora maxima y el numero de agendas validas.</p>',
-        buildPdfProfessionalRanking(professionalRankings),
-        buildPdfFooter(3, pageCount)
-      ].join(""), true),
-      buildPdfPage([
-        buildPdfSectionTitle("Visualizacion ejecutiva", "Tablas y barras estables para A4"),
-        buildPdfDelayBandBars(delayBands),
-        buildPdfRankingTable("Centros por demora media", centerRows),
-        buildPdfRankingTable("Zonas por demora media", zoneRows),
-        buildPdfFooter(4, pageCount)
-      ].join(""), true),
-      buildPdfPage([
-        buildPdfSectionTitle("Metodologia y privacidad", "Criterios de calculo"),
-        buildPdfMethodology(),
-        buildPdfFooter(5, pageCount)
-      ].join(""), true)
-    ].join("");
-  }
-
-  function buildPdfPage(content, forceBreak) {
-    return '<article class="pdf-page' + (forceBreak ? " pdf-page-break" : "") + '">' + content + "</article>";
-  }
-
-  function buildPdfHeader(logoSources) {
-    const leftLogo = logoSources && logoSources.jccm
-      ? '<img src="' + escapeHtml(logoSources.jccm) + '" alt="Castilla-La Mancha">'
-      : '<span>Castilla-La Mancha</span>';
-    const rightLogo = logoSources && logoSources.gai
-      ? '<img src="' + escapeHtml(logoSources.gai) + '" alt="Gerencia de Atencion Integrada de Ciudad Real">'
-      : '<span>GAI Ciudad Real</span>';
-
-    return (
-      '<header class="pdf-header">' +
-      '<div class="pdf-logo-row">' +
-      '<div class="pdf-logo-box pdf-logo-box--left">' +
-      leftLogo +
-      "</div>" +
-      '<div class="pdf-institution-copy">' +
-      "<strong>Servicio de Salud de Castilla-La Mancha</strong>" +
-      "<span>Gerencia de Atencion Integrada de Ciudad Real</span>" +
-      "</div>" +
-      '<div class="pdf-logo-box pdf-logo-box--right">' +
-      rightLogo +
-      "</div>" +
-      "</div>" +
-      "</header>"
-    );
-  }
-
-  function buildPdfTitleBlock(context) {
-    const cutoffText = context.latestCutoff == null ? "Fecha de corte no disponible" : formatLongDate(context.latestCutoff);
-    return (
-      '<section class="pdf-title-block">' +
-      '<p class="pdf-kicker">Informe institucional</p>' +
-      "<h1>Informe sobre accesibilidad</h1>" +
-      "<h2>Programa de analisis de las demoras en Atencion Primaria</h2>" +
-      "<p>Subdireccion de Enfermeria de Atencion Primaria</p>" +
-      '<span class="pdf-cutoff-pill">Fecha de corte: ' + escapeHtml(cutoffText) + "</span>" +
-      "</section>"
-    );
-  }
-
-  function buildPdfContextGrid(context) {
-    const cards = [
-      ["Area", state.filters.area || "Todas las areas"],
-      ["Zona Basica de Salud", context.zoneMeta.value + (context.zoneMeta.detail ? ". " + context.zoneMeta.detail : "")],
-      ["Fecha de corte", context.latestCutoff == null ? "No disponible" : formatLongDate(context.latestCutoff)],
-      ["Agendas validas analizadas", formatInteger(context.metrics.totalValid)]
-    ];
-
-    if (state.filters.centro) {
-      cards.splice(2, 0, ["Centro", state.filters.centro]);
-    }
-    if (state.filters.categoria) {
-      cards.splice(3, 0, ["Categoria", state.filters.categoria]);
-    }
-    if (state.filters.tipoVisita) {
-      cards.splice(4, 0, ["Tipo de visita", state.filters.tipoVisita]);
-    }
-
-    return (
-      '<section class="pdf-context-grid">' +
-      cards.map((card) =>
-        '<article class="pdf-context-card">' +
-        "<span>" + escapeHtml(card[0]) + "</span>" +
-        "<strong>" + escapeHtml(card[1]) + "</strong>" +
-        "</article>"
-      ).join("") +
-      "</section>"
-    );
-  }
-
-  function buildPdfSummary(context) {
-    return (
-      '<section class="pdf-summary-card pdf-card">' +
-      "<h3>Resumen ejecutivo</h3>" +
-      '<div class="pdf-summary-copy">' +
-      buildReportSummaryMarkup(context.filteredRows, context.metrics, context.latestCutoff) +
-      "</div>" +
-      "</section>"
-    );
-  }
-
-  function buildPdfKpiGrid(metrics) {
-    const kpis = [
-      ["% 0-2 dias", formatPercent(metrics.pct0to2), "Indicador acumulativo DGAP"],
-      ["% 0-3 dias", formatPercent(metrics.pct0to3), "Indicador acumulativo DGAP"],
-      ["% 0-6 dias", formatPercent(metrics.pct0to6), "Indicador acumulativo DGAP"],
-      ["% 7 o mas dias", formatPercent(metrics.pct7Plus), "Accesibilidad >= 7 dias", "alert"],
-      ["Agendas validas", formatInteger(metrics.totalValid), "Base del informe"],
-      ["Demora media", formatDayMetric(metrics.mean), "Dias de Accesibilidad"],
-      ["Demora mediana", formatDayMetric(metrics.median), "Valor central"],
-      ["Demora maxima", formatDayMetric(metrics.max), "Mayor demora detectada"]
-    ];
-
-    return (
-      '<section class="pdf-kpi-grid">' +
-      kpis.map((kpi) =>
-        '<article class="pdf-kpi-card' + (kpi[3] ? " pdf-kpi-card--" + kpi[3] : "") + '">' +
-        "<span>" + escapeHtml(kpi[0]) + "</span>" +
-        "<strong>" + escapeHtml(kpi[1]) + "</strong>" +
-        "<small>" + escapeHtml(kpi[2]) + "</small>" +
-        "</article>"
-      ).join("") +
-      "</section>"
-    );
-  }
-
-  function buildPdfSectionTitle(title, subtitle) {
-    return (
-      '<header class="pdf-section-title">' +
-      '<p class="pdf-kicker">' + escapeHtml(subtitle) + "</p>" +
-      "<h2>" + escapeHtml(title) + "</h2>" +
-      "</header>"
-    );
-  }
-
-  function buildPdfCategoryTable(rows) {
-    return buildPdfTableCard(
-      "Detalle por categoria",
-      "Agrupacion por categoria profesional",
-      ["Categoria", "Agendas", "% 0-2", "% 0-3", "% 0-6", "% >=7", "Media", "Mediana", "Max."],
-      rows,
-      (row) => [
-        row.category,
-        formatInteger(row.totalValid),
-        formatPercent(row.pct0to2),
-        formatPercent(row.pct0to3),
-        formatPercent(row.pct0to6),
-        formatPercent(row.pct7Plus),
-        formatReportDelay(row.mean),
-        formatReportDelay(row.median),
-        formatReportDelay(row.max)
-      ],
-      "pdf-table--category"
-    );
-  }
-
-  function buildPdfCategoryVisitTable(rows) {
-    return buildPdfTableCard(
-      "Detalle por categoria y tipo de visita",
-      "Agrupacion por categoria y tipo de agenda",
-      ["Categoria", "Tipo visita", "Agendas", "% 0-2", "% 0-3", "% 0-6", "% >=7", "Media", "Mediana", "Max."],
-      rows,
-      (row) => [
-        row.category,
-        row.visitType,
-        formatInteger(row.totalValid),
-        formatPercent(row.pct0to2),
-        formatPercent(row.pct0to3),
-        formatPercent(row.pct0to6),
-        formatPercent(row.pct7Plus),
-        formatReportDelay(row.mean),
-        formatReportDelay(row.median),
-        formatReportDelay(row.max)
-      ],
-      "pdf-table--category-visit"
-    );
-  }
-
-  function buildPdfTableCard(title, subtitle, headers, rows, rowMapper, tableClass) {
-    if (!rows.length) {
-      return (
-        '<section class="pdf-table-wrapper pdf-card">' +
-        "<h3>" + escapeHtml(title) + "</h3>" +
-        '<p class="pdf-muted">' + escapeHtml(subtitle) + "</p>" +
-        '<div class="pdf-empty-card">No hay datos validos para esta tabla.</div>' +
-        "</section>"
-      );
-    }
-
-    const numericStart = getPdfNumericStart(headers);
-
-    return (
-      '<section class="pdf-table-wrapper pdf-card">' +
-      "<h3>" + escapeHtml(title) + "</h3>" +
-      '<p class="pdf-muted">' + escapeHtml(subtitle) + "</p>" +
-      '<table class="pdf-table ' + tableClass + '">' +
-      "<thead><tr>" +
-      headers.map((header, index) => '<th class="' + (index >= numericStart ? "num" : "") + '">' + escapeHtml(header) + "</th>").join("") +
-      "</tr></thead>" +
-      "<tbody>" +
-      rows.map((row) => {
-        const cells = rowMapper(row);
-        return "<tr>" + cells.map((cell, index) =>
-          '<td class="' + (index >= numericStart ? "num" : "") + (headers[index] === "% >=7" ? " signal" : "") + '">' + escapeHtml(cell) + "</td>"
-        ).join("") + "</tr>";
-      }).join("") +
-      "</tbody></table></section>"
-    );
-  }
-
-  function getPdfNumericStart(headers) {
-    if (headers[0] === "Categoria" && headers[1] === "Tipo visita") {
-      return 2;
-    }
-    if (headers[0] === "Categoria" || headers[0] === "Nombre") {
-      return 1;
-    }
-    return 0;
-  }
-
-  function buildPdfProfessionalRanking(rankings) {
-    if (!rankings.length) {
-      return '<section class="pdf-empty-card">No hay profesionales con agendas validas para generar este ranking.</section>';
-    }
-
-    return (
-      '<section class="pdf-professional-ranking">' +
-      rankings.map((categoryBlock) =>
-        '<article class="pdf-ranking-category-block pdf-card">' +
-        "<h3>" + escapeHtml(categoryBlock.category) + "</h3>" +
-        '<table class="pdf-table pdf-table--professionals">' +
-        "<thead><tr>" +
-        ["Profesional", "Centro", "Agendas", "% 0-2", "% 0-3", "% 0-6", "% >=7", "Media", "Mediana", "Max."].map((header, index) =>
-          '<th class="' + (index >= 2 ? "num" : "") + '">' + escapeHtml(header) + "</th>"
-        ).join("") +
-        "</tr></thead><tbody>" +
-        categoryBlock.professionals.map((row) =>
-          "<tr>" +
-          "<td>" + escapeHtml(row.professional) + "</td>" +
-          "<td>" + escapeHtml(row.center) + "</td>" +
-          '<td class="num">' + formatInteger(row.totalValid) + "</td>" +
-          '<td class="num">' + formatPercent(row.pct0to2) + "</td>" +
-          '<td class="num">' + formatPercent(row.pct0to3) + "</td>" +
-          '<td class="num">' + formatPercent(row.pct0to6) + "</td>" +
-          '<td class="num signal">' + formatPercent(row.pct7Plus) + "</td>" +
-          '<td class="num strong">' + formatReportDelay(row.mean) + "</td>" +
-          '<td class="num">' + formatReportDelay(row.median) + "</td>" +
-          '<td class="num">' + formatReportDelay(row.max) + "</td>" +
-          "</tr>"
-        ).join("") +
-        "</tbody></table></article>"
-      ).join("") +
-      "</section>"
-    );
-  }
-
-  function buildPdfDelayBandBars(delayBands) {
-    return (
-      '<section class="pdf-card pdf-bars-card">' +
-      "<h3>Distribucion por tramos excluyentes</h3>" +
-      '<p class="pdf-muted">Los KPI 0-2, 0-3 y 0-6 son acumulativos; esta visualizacion usa tramos excluyentes.</p>' +
-      delayBands.map((band) =>
-        '<div class="pdf-bar-row">' +
-        '<span class="pdf-bar-label">' + escapeHtml(band.label) + "</span>" +
-        '<div class="pdf-bar-track"><span style="width:' + Math.max(2, band.share).toFixed(1) + "%;background:" + band.color + '"></span></div>' +
-        "<strong>" + formatInteger(band.count) + " (" + formatPercent(band.share) + ")</strong>" +
-        "</div>"
-      ).join("") +
-      "</section>"
-    );
-  }
-
-  function buildPdfRankingTable(title, rows) {
-    return buildPdfTableCard(
-      title,
-      "Ordenado por demora media descendente",
-      ["Nombre", "Agendas", "% >=7", "Media", "Mediana", "Max."],
-      rows,
-      (row) => [
-        row.label,
-        formatInteger(row.totalValid),
-        formatPercent(row.pct7Plus),
-        formatReportDelay(row.mean),
-        formatReportDelay(row.median),
-        formatReportDelay(row.max)
-      ],
-      "pdf-table--ranking"
-    );
-  }
-
-  function buildPdfMethodology() {
-    return (
-      '<section class="pdf-card pdf-methodology-card">' +
-      "<h3>Criterios de calculo</h3>" +
-      "<ul>" +
-      "<li>Los indicadores se calculan sobre agendas con valor numerico y no negativo en la columna Accesibilidad.</li>" +
-      "<li>% 0-2 dias, % 0-3 dias y % 0-6 dias son indicadores acumulativos DGAP.</li>" +
-      "<li>% 7 o mas dias recoge las agendas con Accesibilidad igual o superior a 7 dias.</li>" +
-      "<li>Las tablas por grupo calculan porcentajes sobre el total valido de cada grupo.</li>" +
-      "<li>El ranking de profesionales se ordena por demora media descendente; en empate, por % >=7 dias, demora maxima y agendas validas.</li>" +
-      "</ul>" +
-      "<h3>Privacidad</h3>" +
-      '<p>El fichero Excel se procesa localmente en el dispositivo. No se envian datos a servidores externos. El PDF se genera localmente en el navegador o en la WebView de Android.</p>' +
-      '<p class="pdf-muted">Fecha de generacion: ' + escapeHtml(formatLongDate(new Date())) + ".</p>" +
-      "</section>"
-    );
-  }
-
-  function buildPdfFooter(pageNumber, pageCount) {
-    return (
-      '<footer class="pdf-footer">' +
-      "<span>Programa de analisis de las demoras en Atencion Primaria</span>" +
-      "<span>Gerencia de Atencion Integrada de Ciudad Real</span>" +
-      "<strong>Pagina " + pageNumber + " de " + pageCount + "</strong>" +
-      "</footer>"
-    );
-  }
-
-  function buildReportPdfElement() {
-    const reportDocument = document.getElementById("reportDocument");
-    if (!reportDocument) {
-      throw new Error("No se encontró el documento de informe.");
-    }
-
-    return reportDocument;
-  }
-
-  function buildPrintableReportHtml() {
-    const reportDocument = document.getElementById("reportDocument");
-    if (!reportDocument) {
-      console.warn("No se encontró el documento de informe para imprimir.");
-      return "";
-    }
-
-    const clonedReport = reportDocument.cloneNode(true);
-    replaceCanvasWithImages(reportDocument, clonedReport);
-
-    return (
-      "<!doctype html>" +
-      '<html lang="es">' +
-      "<head>" +
-      '<meta charset="utf-8">' +
-      '<meta name="viewport" content="width=device-width, initial-scale=1">' +
-      "<title>Informe sobre accesibilidad</title>" +
-      "<style>" + collectPrintableStyles() + "</style>" +
-      "</head>" +
-      "<body>" +
-      '<main class="printable-report-root">' +
-      clonedReport.outerHTML +
-      "</main>" +
-      "</body>" +
-      "</html>"
-    );
-  }
-
   function buildReportPdfFileName() {
     const filteredRows = getFilteredRows();
     const latestCutoff = getLatestDateSortValue(filteredRows, "Fecha Corte");
@@ -3086,93 +2671,6 @@
       .slice(0, 48) || "AP";
   }
 
-  function waitForNextFrame() {
-    return new Promise((resolve) => {
-      window.requestAnimationFrame(() => resolve());
-    });
-  }
-
-  function collectPrintableStyles() {
-    const rules = [];
-    Array.from(document.styleSheets).forEach((sheet) => {
-      try {
-        Array.from(sheet.cssRules || []).forEach((rule) => {
-          rules.push(rule.cssText);
-        });
-      } catch (error) {
-        // Cross-origin stylesheets are intentionally skipped. App styles are local.
-      }
-    });
-
-    rules.push(
-      "html,body{margin:0;background:#fff;color:#17324d;font-family:Aptos,'Segoe UI',sans-serif;}",
-      ".printable-report-root{max-width:1120px;margin:0 auto;padding:24px;}",
-      ".report-document{display:grid;gap:18px;}",
-      ".chart-host{background:#fff!important;}",
-      "@page{size:A4;margin:16mm 14mm;}",
-      "@media print{.printable-report-root{padding:0;max-width:none}.report-table-wrapper{max-height:none;overflow:visible}.report-table thead{display:table-header-group}.report-table tr,.report-kpis,.report-summary,.report-detail-tables,.report-charts{break-inside:avoid;page-break-inside:avoid}}"
-    );
-
-    return rules.join("\n");
-  }
-
-  function replaceCanvasWithImages(sourceRoot, clonedRoot) {
-    const sourceCanvases = Array.from(sourceRoot.querySelectorAll("canvas"));
-    const clonedCanvases = Array.from(clonedRoot.querySelectorAll("canvas"));
-    sourceCanvases.forEach((canvas, index) => {
-      const clonedCanvas = clonedCanvases[index];
-      if (!clonedCanvas || !canvas.toDataURL) {
-        return;
-      }
-
-      try {
-        const image = document.createElement("img");
-        image.src = canvas.toDataURL("image/png");
-        image.alt = clonedCanvas.getAttribute("aria-label") || "Gráfico del informe";
-        image.style.maxWidth = "100%";
-        image.style.height = "auto";
-        clonedCanvas.replaceWith(image);
-      } catch (error) {
-        // If the canvas cannot be serialized, keep the cloned element.
-      }
-    });
-  }
-
-  function showInternalPrintablePreview(reportHtml) {
-    let preview = document.getElementById("printablePreview");
-    if (!preview) {
-      preview = document.createElement("section");
-      preview.id = "printablePreview";
-      preview.className = "printable-preview";
-      preview.innerHTML =
-        '<div class="printable-preview__toolbar">' +
-        "<strong>Informe imprimible</strong>" +
-        '<div class="printable-preview__actions">' +
-        '<button class="secondary-button" type="button" data-print-preview>Imprimir vista</button>' +
-        '<button class="ghost-button" type="button" data-close-preview>Cerrar</button>' +
-        "</div>" +
-        "</div>" +
-        '<iframe title="Vista imprimible del informe"></iframe>';
-      document.body.appendChild(preview);
-
-      preview.querySelector("[data-close-preview]").addEventListener("click", () => {
-        preview.classList.add("is-hidden");
-      });
-      preview.querySelector("[data-print-preview]").addEventListener("click", () => {
-        const frameWindow = preview.querySelector("iframe").contentWindow;
-        if (frameWindow && typeof frameWindow.print === "function") {
-          frameWindow.focus();
-          frameWindow.print();
-        } else {
-          showPrintNotice("La impresión de la vista interna no está disponible en este navegador.");
-        }
-      });
-    }
-
-    preview.querySelector("iframe").srcdoc = reportHtml;
-    preview.classList.remove("is-hidden");
-  }
-
   function showPrintNotice(message) {
     if (!refs.reportPrintNotice) {
       window.alert(message);
@@ -3190,15 +2688,6 @@
 
     refs.reportPrintNotice.textContent = "";
     refs.reportPrintNotice.classList.add("is-hidden");
-  }
-
-  function isAndroidPrintConstrainedEnvironment() {
-    const isAndroid = /Android/i.test(navigator.userAgent || "");
-    const isStandalone =
-      (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) ||
-      Boolean(window.navigator.standalone);
-    const hasNativeBridge = Boolean(window.AndroidPrint && typeof window.AndroidPrint.printReport === "function");
-    return isAndroid && (isStandalone || !hasNativeBridge);
   }
 
   function resetFilterValues() {
@@ -3460,3 +2949,5 @@
     return baseName + "_" + stamp + "." + extension;
   }
 })();
+
+
