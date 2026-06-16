@@ -1563,23 +1563,26 @@
     });
   }
 
-  function buildProfessionalsWithDelayOver7(validRows) {
+  function buildProfessionalsWithDelayOver7ByVisitType(validRows) {
     const grouped = new Map();
 
     validRows.forEach((row) => {
       const category = getRecordCategory(row);
       const professional = normalizeText(row["PROFESIONAL"]);
       const cias = normalizeText(row["CIAS"]);
+      const visitType = getRecordVisitType(row);
 
       if (!professional && !cias) {
         return;
       }
 
-      const key = [category, professional || "Sin profesional", cias || "Sin CIAS"].join("\u001f");
+      const professionalLabel = professional || "CIAS " + cias;
+      const key = [category, professionalLabel, visitType].join("\u001f");
       if (!grouped.has(key)) {
         grouped.set(key, {
           category,
-          professional: professional || "CIAS " + cias,
+          professional: professionalLabel,
+          visitType,
           centers: new Set(),
           zones: new Set(),
           rows: []
@@ -1597,6 +1600,7 @@
       return {
         category: group.category,
         professional: group.professional,
+        visitType: group.visitType,
         center: summarizeTextList(uniqueSorted(Array.from(group.centers)), 2),
         zone: summarizeTextList(uniqueSorted(Array.from(group.zones)), 2),
         totalValid: metrics.totalValid,
@@ -1611,7 +1615,9 @@
         right.max - left.max ||
         right.pct7Plus - left.pct7Plus ||
         right.totalValid - left.totalValid ||
-        left.professional.localeCompare(right.professional, "es", { sensitivity: "base", numeric: true })
+        left.category.localeCompare(right.category, "es", { sensitivity: "base", numeric: true }) ||
+        left.professional.localeCompare(right.professional, "es", { sensitivity: "base", numeric: true }) ||
+        left.visitType.localeCompare(right.visitType, "es", { sensitivity: "base", numeric: true })
       ));
   }
 
@@ -2436,21 +2442,22 @@
 
   function drawNativeProfessionalsOver7Page(doc, context) {
     doc.addPage();
-    drawNativeSectionTitle(doc, "Profesionales con demora media de 7 o mas dias", "Tabla operativa calculada sobre el subconjunto filtrado");
-    const rows = buildProfessionalsWithDelayOver7(context.validRows);
+    drawNativeSectionTitle(doc, "Profesionales con demora media >=7 dias por tipo de visita", "Tabla operativa calculada por profesional y tipo de visita");
+    const rows = buildProfessionalsWithDelayOver7ByVisitType(context.validRows);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.3);
     doc.setTextColor(57, 85, 108);
-    doc.text(doc.splitTextToSize("Se incluyen exclusivamente profesionales con demora media igual o superior a 7 dias. El orden prioriza mayor demora media, mayor demora maxima, mayor porcentaje de agendas con 7 o mas dias y mayor numero de agendas validas.", 186), 12, 31);
+    doc.text(doc.splitTextToSize("Se incluyen exclusivamente las combinaciones profesional-tipo de visita cuya demora media es igual o superior a 7 dias dentro del subconjunto filtrado. El calculo se realiza por tipo de visita, no sobre la media global del profesional.", 186), 12, 31);
 
     if (!rows.length) {
-      drawNativeEmptyState(doc, 54, "No se identifican profesionales con demora media igual o superior a 7 dias en el subconjunto filtrado.");
+      drawNativeEmptyState(doc, 54, "No se identifican combinaciones profesional-tipo de visita con demora media igual o superior a 7 dias en el subconjunto filtrado.");
       return;
     }
 
-    drawNativeTable(doc, "", 54, ["Categoria", "Profesional", "Centro", "Zona", "Agendas", "Media", "Mediana", "Max.", "% >=7 d"], rows.map((row) => [
+    drawNativeTable(doc, "", 54, ["Categoria", "Profesional", "Tipo visita", "Centro", "Zona", "Agendas", "Media", "Mediana", "Max.", "% >=7 d"], rows.map((row) => [
       row.category,
       row.professional,
+      row.visitType,
       row.center,
       row.zone,
       formatInteger(row.totalValid),
@@ -2459,16 +2466,17 @@
       formatReportDelay(row.max),
       formatPercent(row.pct7Plus)
     ]), {
-      0: { cellWidth: 24 },
-      1: { cellWidth: 42 },
+      0: { cellWidth: 20 },
+      1: { cellWidth: 34 },
       2: { cellWidth: 32 },
-      3: { cellWidth: 25 },
-      4: { cellWidth: 14, halign: "right" },
-      5: { cellWidth: 14, halign: "right" },
-      6: { cellWidth: 14, halign: "right" },
-      7: { cellWidth: 11, halign: "right" },
-      8: { cellWidth: 10, halign: "right" }
-    }, 6.8);
+      3: { cellWidth: 26 },
+      4: { cellWidth: 18 },
+      5: { cellWidth: 12, halign: "right" },
+      6: { cellWidth: 12, halign: "right" },
+      7: { cellWidth: 12, halign: "right" },
+      8: { cellWidth: 10, halign: "right" },
+      9: { cellWidth: 10, halign: "right" }
+    }, 6.4);
   }
 
   function drawNativeMethodologyPage(doc) {
@@ -2479,7 +2487,7 @@
       "Los porcentajes 0-2 dias, 0-3 dias y 0-6 dias son indicadores acumulativos DGAP. Una agenda con Accesibilidad 2 cuenta en 0-2, 0-3 y 0-6.",
       "% 7 o mas dias recoge las agendas con Accesibilidad igual o superior a 7 dias.",
       "Las tablas por categoria, tipo de visita y profesional calculan porcentajes sobre el total valido de cada grupo, no sobre el total global.",
-      "El ranking de profesionales se ordena por demora media descendente; en empate, por % >=7 dias, demora maxima y agendas validas.",
+      "La tabla final de profesionales identifica combinaciones profesional-tipo de visita con demora media igual o superior a 7 dias. El calculo se realiza para cada tipo de visita de forma independiente, no sobre la media global del profesional.",
       "El fichero Excel se procesa localmente en el dispositivo. No se envian datos a servidores externos. El PDF se genera localmente en el navegador o en la WebView de Android."
     ];
     let y = 36;
