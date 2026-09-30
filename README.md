@@ -46,6 +46,8 @@ Los indicadores 0-2, 0-3 y 0-6 son acumulativos.
 
 La pestana `Informe` genera una vista ejecutiva imprimible adaptada a los filtros activos. Incluye cabecera, fecha de corte mas reciente del subconjunto filtrado, KPIs DGAP, resumen automatico, detalle por categoria, detalle por categoria y tipo de visita, graficos y nota metodologica.
 
+El boton de imprimir genera un PDF A4 local. En la APK Demoras AP 1.0.1 o posterior, abre el selector de documentos de Android para elegir donde guardarlo, sin permisos de almacenamiento. La confirmacion aparece despues de escribir el archivo; cancelar no cambia los filtros. Las APK antiguas sin soporte PDF deben actualizarse.
+
 ## Mapa por Zona Basica de Salud
 
 La pestana `Graficos` incluye un mapa analitico no geografico por Zona Basica de Salud. Cada burbuja representa una zona:

@@ -252,6 +252,11 @@
     refs.resetFiltersButton.addEventListener("click", resetFilters);
     refs.exportCsvButton.addEventListener("click", exportFilteredTable);
     refs.printReportButton.addEventListener("click", handlePrintReport);
+    window.addEventListener("demoras-pdf-result", (event) => {
+      if (event.detail && typeof event.detail.message === "string") {
+        showPrintNotice(event.detail.message);
+      }
+    });
     refs.tableSearchInput.addEventListener("input", handleTableSearch);
     refs.pageSizeSelect.addEventListener("change", handlePageSizeChange);
     refs.prevPageButton.addEventListener("click", () => changePage(-1));
@@ -1973,6 +1978,12 @@
     hidePrintNotice();
     setActiveTab("report");
 
+    if (/Android/i.test(navigator.userAgent) && /; wv\)/i.test(navigator.userAgent) &&
+        (!window.AndroidPdf || typeof window.AndroidPdf.saveReportPdf !== "function")) {
+      showPrintNotice("Esta APK no admite guardar el informe PDF. Instale la APK actualizada de Demoras AP.");
+      return;
+    }
+
     if (!window.jspdf || typeof window.jspdf.jsPDF !== "function") {
       showPrintNotice("No se ha podido cargar el generador local de PDF.");
       return;
@@ -1994,7 +2005,7 @@
           throw new Error("No se ha podido generar el contenido PDF.");
         }
         window.AndroidPdf.saveReportPdf(base64, filename);
-        showPrintNotice("PDF generado localmente. Revise la carpeta Descargas del dispositivo.");
+        showPrintNotice("PDF generado localmente. Seleccione la ubicacion donde desea guardarlo.");
       } else {
         const pdfBlob = doc.output("blob");
         downloadBlob(pdfBlob, filename);
@@ -2520,6 +2531,14 @@
   }
 
   function drawNativeTable(doc, title, startY, head, body, columnStyles, fontSize) {
+    if (startY > 250) {
+      doc.addPage();
+      startY = 25;
+    }
+    const totalWidth = Object.values(columnStyles).reduce((sum, style) => sum + (style.cellWidth || 0), 0);
+    const fittedColumns = Object.fromEntries(Object.entries(columnStyles).map(([key, style]) => [
+      key, Object.assign({}, style, { cellWidth: style.cellWidth * 186 / totalWidth })
+    ]));
     if (title) {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(10.5);
@@ -2553,7 +2572,7 @@
       alternateRowStyles: {
         fillColor: [248, 251, 253]
       },
-      columnStyles,
+      columnStyles: fittedColumns,
       didParseCell: (data) => {
         if (data.section === "body" && data.column.index >= Math.max(1, head.length - 8)) {
           data.cell.styles.halign = "right";
